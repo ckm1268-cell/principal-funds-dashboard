@@ -7,8 +7,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Principal Malaysia Funds — NAV Dashboard<span class="version-pill">v1.0</span></h1>
-  <div class="toptitle-sub">Rolling 3-day snapshot, refreshed by the daily NAV check. Mirrors the live Cowork dashboard.</div>
+  <h1>Principal Malaysia Funds — NAV Dashboard<span class="version-pill">v2.0</span></h1>
+  <div class="toptitle-sub">Rolling 3-day snapshot, auto-updated every weekday morning by GitHub Actions from official NAV data.</div>
 
   <div class="tabs">
     <button class="tab-btn active" id="tabbtn-today" onclick="showTab('today', this)">Today</button>
@@ -89,7 +89,7 @@
     <div class="chart-box" id="comparisonChart" style="height:420px;"></div>
   </section>
 
-  <div class="pagefoot">Published via Send · mirrors the Cowork dashboard artifact "principal-funds-dashboard" · updated by the daily NAV check task</div>
+  <div class="pagefoot">Self-updating dashboard hosted on GitHub Pages · rebuilt every weekday morning from official principal.com.my NAV data via GitHub Actions</div>
 </div>
 
 <style>
