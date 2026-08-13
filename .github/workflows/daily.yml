@@ -1,1 +1,41 @@
+name: Daily NAV dashboard update
+
+on:
+  schedule:
+    # 01:00 UTC = 09:00 Asia/Kuala_Lumpur, Monday-Friday.
+    # NAV publishes with a 1-2 business day lag, so a fixed weekday morning
+    # check is enough; the script itself is safe to run on MY public
+    # holidays too (it just re-confirms the same last-published NAV).
+    - cron: "0 1 * * 1-5"
+  workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Update dashboard from Principal NAV data
+        run: python scripts/update_dashboard.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- index.html; then
+            echo "No NAV changes today — nothing to commit."
+          else
+            git add index.html
+            git commit -m "Daily NAV update: $(date -u +'%Y-%m-%d')"
+            git push
+          fi
 
