@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Principal Malaysia Funds — NAV Dashboard</title>
+</head>
+<body>
+<div class="wrap">
+  <h1>Principal Malaysia Funds — NAV Dashboard<span class="version-pill">v1.0</span></h1>
+  <div class="toptitle-sub">Rolling 3-day snapshot, refreshed by the daily NAV check. Mirrors the live Cowork dashboard.</div>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tabbtn-today" onclick="showTab('today', this)">Today</button>
+    <button class="tab-btn" id="tabbtn-yesterday" onclick="showTab('yesterday', this)">Yesterday</button>
+    <button class="tab-btn" id="tabbtn-2days" onclick="showTab('2days', this)">Past Two Days</button>
+  </div>
+
+  <section class="tab-panel active" id="panel-today">
+    <div class="daybadge daybadge-today">Today</div>
+    <div class="subtitle" id="subtitle-today">Published NAV as of 11 Aug 2026 · checked 13 Aug 2026</div>
+    <div class="cards">
+      <div class="card"><div class="label">Total portfolio value</div><div class="value" id="totalValue-today">—</div></div>
+      <div class="card"><div class="label">Change vs baseline</div><div class="value" id="totalChange-today">—</div></div>
+      <div class="card"><div class="label">Funds flagged (&gt;2% 1-day move)</div><div class="value" id="flagCount-today">—</div></div>
+    </div>
+    <div class="table-wrap">
+      <table id="fundTable-today">
+        <thead><tr><th>Fund</th><th>NAV</th><th>Est. Value (RM)</th><th>1-day move</th><th>Vs baseline</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="chart-box" id="navChart-today"></div>
+    <div class="foot">
+      Sources: <code>principal.com.my</code> fund pages, cross-checked against <code>cio.cimb.com</code>. NAVs publish with a 1–2 day lag,
+      so this reflects the most recent session Principal had posted at check time. Flag rule: &gt;2% single-day NAV move, or NAV unavailable
+      (vs-baseline % is shown for context only and does not itself trigger a flag). No new NAV has been published by Principal since 11 Aug 2026
+      as of this check (verified directly against principal.com.my).
+    </div>
+  </section>
+
+  <section class="tab-panel" id="panel-yesterday">
+    <div class="daybadge daybadge-yesterday">Yesterday</div>
+    <div class="subtitle" id="subtitle-yesterday">Published NAV as of 11 Aug 2026 · checked 12 Aug 2026</div>
+    <div class="cards">
+      <div class="card"><div class="label">Total portfolio value</div><div class="value" id="totalValue-yesterday">—</div></div>
+      <div class="card"><div class="label">Change vs baseline</div><div class="value" id="totalChange-yesterday">—</div></div>
+      <div class="card"><div class="label">Funds flagged (&gt;2% 1-day move)</div><div class="value" id="flagCount-yesterday">—</div></div>
+    </div>
+    <div class="table-wrap">
+      <table id="fundTable-yesterday">
+        <thead><tr><th>Fund</th><th>NAV</th><th>Est. Value (RM)</th><th>1-day move</th><th>Vs baseline</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="chart-box" id="navChart-yesterday"></div>
+    <div class="foot">
+      Sources: <code>principal.com.my</code> fund pages, cross-checked against <code>cio.cimb.com</code>. NAVs publish with a 1–2 day lag,
+      so this reflects the most recent session Principal had posted at check time. Flag rule: &gt;2% single-day NAV move, or NAV unavailable
+      (vs-baseline % is shown for context only and does not itself trigger a flag). No new NAV has been published by Principal since 11 Aug 2026.
+    </div>
+  </section>
+
+  <section class="tab-panel" id="panel-2days">
+    <div class="daybadge daybadge-2days">2 Days Ago</div>
+    <div class="subtitle" id="subtitle-2days">Published NAV as of 11 Aug 2026 · checked 11 Aug 2026</div>
+    <div class="cards">
+      <div class="card"><div class="label">Total portfolio value</div><div class="value" id="totalValue-2days">—</div></div>
+      <div class="card"><div class="label">Change vs baseline</div><div class="value" id="totalChange-2days">—</div></div>
+      <div class="card"><div class="label">Funds flagged (&gt;2% 1-day move)</div><div class="value" id="flagCount-2days">—</div></div>
+    </div>
+    <div class="table-wrap">
+      <table id="fundTable-2days">
+        <thead><tr><th>Fund</th><th>NAV</th><th>Est. Value (RM)</th><th>1-day move</th><th>Vs baseline</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="chart-box" id="navChart-2days"></div>
+    <div class="foot">
+      Sources: <code>principal.com.my</code> fund pages, cross-checked against <code>cio.cimb.com</code>. NAVs publish with a 1–2 day lag,
+      so this reflects the most recent session Principal had posted at check time. Flag rule: &gt;2% single-day NAV move, or NAV unavailable
+      (vs-baseline % is shown for context only and does not itself trigger a flag). No new NAV has been published by Principal since 11 Aug 2026.
+    </div>
+  </section>
+
+  <section class="comparison-section">
+    <h2 class="section-title">Fund Value Comparison</h2>
+    <div class="subtitle">Estimated value per fund across the last 3 published NAV sessions (not the checked-date snapshots above, which can coincide when NAV publishing lags).</div>
+    <div class="chart-box" id="comparisonChart" style="height:420px;"></div>
+  </section>
+
+  <div class="pagefoot">Published via Send · mirrors the Cowork dashboard artifact "principal-funds-dashboard" · updated by the daily NAV check task</div>
+</div>
+
+<style>
+  :root {
+    color-scheme: light;
+    --blue: #2f6fed;
+    --grey: #8a8a8a;
+    --rust: #b3441f;
+    --green: #1f7a4d;
+    --orange: #e08a2c;
+    --border: #e5e3de;
+    --muted: #6b6b6b;
+    --text: #1a1a1a;
+    --tablehead: #f0efe9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f7f7f5;
+    color: var(--text);
+    padding: 24px 16px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .toptitle-sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .version-pill {
+    display: inline-block; background: #eeece7; color: var(--muted); font-size: 10.5px; font-weight: 600;
+    padding: 2px 8px; border-radius: 999px; margin-left: 8px; vertical-align: middle;
+  }
+
+  .tabs {
+    display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .tab-btn {
+    appearance: none; border: none; background: transparent; font: inherit; font-size: 13px; font-weight: 600;
+    color: var(--muted); padding: 10px 16px; cursor: pointer; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .daybadge {
+    display: inline-block; color: #fff; font-size: 11px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; margin-bottom: 8px;
+  }
+  .daybadge-today { background: var(--blue); }
+  .daybadge-yesterday { background: var(--grey); }
+  .daybadge-2days { background: var(--rust); }
+
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .cards {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px;
+  }
+  @media (max-width: 640px) { .cards { grid-template-columns: 1fr; } }
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .card .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .card .value { font-size: 22px; font-weight: 600; }
+  .neg { color: var(--rust); }
+  .pos { color: var(--green); }
+
+  .table-wrap { overflow-x: auto; margin-bottom: 24px; }
+  table {
+    width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden; font-size: 13px; min-width: 560px;
+  }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #eeece7; }
+  th { background: var(--tablehead); font-weight: 600; color: #3a3a3a; }
+  tr:last-child td { border-bottom: none; }
+  .flag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .flag-warn { background: #fdecdf; color: var(--rust); }
+  .flag-ok { background: #e5f3ea; color: var(--green); }
+
+  .chart-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+  .chart-box svg { width: 100%; height: auto; display: block; }
+
+  .foot { font-size: 12px; color: #8a8a8a; line-height: 1.5; }
+  .foot code { background: #eeece7; padding: 1px 5px; border-radius: 4px; }
+
+  .comparison-section { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 4px; }
+  .section-title { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
+
+  .pagefoot { text-align: center; font-size: 11px; color: #a8a8a4; margin-top: 28px; padding-bottom: 8px; }
+
+  @media (prefers-color-scheme: dark) {
+    body { background: #16161a; color: #eee; }
+    .card, table, .chart-box { background: #1f1f24; border-color: #33333a; }
+    th { background: #26262c; color: #ddd; }
+    td { border-color: #2c2c33; }
+    .tabs { border-color: #33333a; }
+    .version-pill { background: #26262c; color: #999; }
+  }
+</style>
+
+<script>
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// Verified against principal.com.my NAV history pages on 13 Aug 2026 — no new NAV print
+// has been posted for any of the three funds since 11 Aug 2026.
+const realHistory = {
+  islamic: [["22-07",0.9350],["23-07",0.9501],["24-07",0.9073],["27-07",0.9081],["28-07",0.8317],["29-07",0.7975],["30-07",0.7954],["31-07",0.8862],["03-08",0.8818],["04-08",0.8979],["05-08",0.9255],["06-08",0.8928],["07-08",0.8872],["10-08",0.8980],["11-08",0.9060]],
+  dali: [["22-07",0.8898],["23-07",0.9026],["24-07",0.8714],["27-07",0.8740],["28-07",0.8253],["29-07",0.8029],["30-07",0.8004],["31-07",0.8691],["03-08",0.8574],["04-08",0.8637],["05-08",0.8870],["06-08",0.8655],["07-08",0.8628],["10-08",0.8700],["11-08",0.8769]],
+  greaterChina: [["22-07",1.2325],["23-07",1.2041],["24-07",1.1888],["27-07",1.1996],["28-07",1.1671],["29-07",1.1617],["30-07",1.1709],["31-07",1.1966],["03-08",1.2053],["04-08",1.2243],["05-08",1.2411],["06-08",1.2343],["07-08",1.2586],["10-08",1.2634],["11-08",1.2650]]
+};
+function fundsSnapshot() {
+  return [
+    { name: "Islamic Asia Pacific Dynamic Equity", isin: "MYU1000AA007", units: 74474.83, baselineNav: 1.0396, nav: 0.9060, dailyChangePct: 0.89, history: realHistory.islamic },
+    { name: "DALI Asia Pacific Equity Growth", isin: "MYU1000BD009", units: 76816.72, baselineNav: 0.9549, nav: 0.8769, dailyChangePct: 0.79, history: realHistory.dali },
+    { name: "Greater China Equity (Class MYR)", isin: "MYU1000CB001", units: 42026.20, baselineNav: 1.2895, nav: 1.2650, dailyChangePct: 0.13, history: realHistory.greaterChina }
+  ];
+}
+const datasets = { today: fundsSnapshot(), yesterday: fundsSnapshot(), "2days": fundsSnapshot() };
+
+const LINE_COLORS = ["#2f6fed", "#e08a2c", "#1f7a4d"];
+const SESSION_COLORS = ["#8a8a8a", "#e08a2c", "#2f6fed"];
+
+const fmtMoney = n => "RM " + n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = n => (n > 0 ? "+" : "") + n.toFixed(2) + "%";
+const svgns = "http://www.w3.org/2000/svg";
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(svgns, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+function renderTab(key) {
+  const funds = datasets[key];
+  let totalValue = 0, totalBaseline = 0, flagged = 0;
+  const tbody = document.querySelector(`#fundTable-${key} tbody`);
+  tbody.innerHTML = "";
+
+  funds.forEach(f => {
+    const value = f.nav * f.units;
+    const baselineValue = f.baselineNav * f.units;
+    const vsBaselinePct = ((value - baselineValue) / baselineValue) * 100;
+    totalValue += value;
+    totalBaseline += baselineValue;
+    const isFlagged = Math.abs(f.dailyChangePct) > 2;
+    if (isFlagged) flagged++;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><strong>${f.name}</strong><br><span style="color:#8a8a8a;font-size:11px">${f.isin}</span></td>
+      <td>${f.nav.toFixed(4)}</td>
+      <td>${fmtMoney(value)}</td>
+      <td class="${f.dailyChangePct >= 0 ? 'pos' : 'neg'}">${fmtPct(f.dailyChangePct)}</td>
+      <td class="${vsBaselinePct >= 0 ? 'pos' : 'neg'}">${fmtPct(vsBaselinePct)}</td>
+      <td>${isFlagged ? '<span class="flag flag-warn">Flagged</span>' : '<span class="flag flag-ok">OK</span>'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const totalChangePct = ((totalValue - totalBaseline) / totalBaseline) * 100;
+  document.getElementById(`totalValue-${key}`).textContent = fmtMoney(totalValue);
+  const totalChangeEl = document.getElementById(`totalChange-${key}`);
+  totalChangeEl.textContent = fmtPct(totalChangePct);
+  totalChangeEl.className = "value " + (totalChangePct >= 0 ? "pos" : "neg");
+  const flagCountEl = document.getElementById(`flagCount-${key}`);
+  flagCountEl.textContent = `${flagged} of ${funds.length}`;
+  flagCountEl.className = "value " + (flagged > 0 ? "neg" : "pos");
+
+  renderTrendChart(funds, document.getElementById(`navChart-${key}`));
+}
+
+function renderTrendChart(funds, container) {
+  container.innerHTML = "";
+  const W = 900, H = 320;
+  const pad = { l: 55, r: 20, t: 20, b: 70 };
+  const innerW = W - pad.l - pad.r, innerH = H - pad.t - pad.b;
+  const allVals = funds.flatMap(f => f.history.map(h => h[1]));
+  let minV = Math.min(...allVals), maxV = Math.max(...allVals);
+  const range = (maxV - minV) || 1;
+  minV -= range * 0.1; maxV += range * 0.1;
+  const n = funds[0].history.length;
+  const xStep = innerW / (n - 1);
+  const xPos = i => pad.l + i * xStep;
+  const yPos = v => pad.t + innerH - ((v - minV) / (maxV - minV)) * innerH;
+
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, xmlns: svgns }, container);
+
+  // gridlines + y labels
+  const ticks = 5;
+  for (let i = 0; i <= ticks; i++) {
+    const v = minV + (i / ticks) * (maxV - minV);
+    const y = yPos(v);
+    el("line", { x1: pad.l, x2: W - pad.r, y1: y, y2: y, stroke: "#eeece7", "stroke-width": 1 }, svg);
+    const t = el("text", { x: pad.l - 8, y: y + 4, "text-anchor": "end", "font-size": 11, fill: "#6b6b6b" }, svg);
+    t.textContent = v.toFixed(2);
+  }
+
+  // x labels (every other date to avoid crowding)
+  funds[0].history.forEach((h, i) => {
+    if (i % 2 !== 0 && i !== n - 1) return;
+    const t = el("text", { x: xPos(i), y: H - pad.b + 34, "text-anchor": "middle", "font-size": 10, fill: "#6b6b6b",
+      transform: `rotate(-40 ${xPos(i)} ${H - pad.b + 34})` }, svg);
+    t.textContent = h[0];
+  });
+  const xlab = el("text", { x: W / 2, y: H - 8, "text-anchor": "middle", "font-size": 11, fill: "#3a3a3a" }, svg);
+  xlab.textContent = "Date (2026)";
+  const ylab = el("text", { x: 16, y: pad.t + innerH / 2, "text-anchor": "middle", "font-size": 11, fill: "#3a3a3a",
+    transform: `rotate(-90 16 ${pad.t + innerH / 2})` }, svg);
+  ylab.textContent = "NAV (RM)";
+
+  // lines + markers
+  funds.forEach((f, fi) => {
+    const pts = f.history.map((h, i) => `${xPos(i)},${yPos(h[1])}`).join(" ");
+    el("polyline", { points: pts, fill: "none", stroke: LINE_COLORS[fi], "stroke-width": 2 }, svg);
+    f.history.forEach((h, i) => {
+      el("circle", { cx: xPos(i), cy: yPos(h[1]), r: 2.5, fill: LINE_COLORS[fi] }, svg);
+    });
+  });
+
+  // legend
+  const legendY = H - 6;
+  let lx = pad.l;
+  funds.forEach((f, fi) => {
+    // measured roughly; legend rendered as separate HTML row instead for reliability
+  });
+  const legend = document.createElement("div");
+  legend.style.cssText = "display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-top:8px;font-size:11px;color:#3a3a3a;";
+  funds.forEach((f, fi) => {
+    const item = document.createElement("span");
+    item.style.cssText = "display:inline-flex;align-items:center;gap:6px;";
+    item.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${LINE_COLORS[fi]};display:inline-block;"></span>${f.name}`;
+    legend.appendChild(item);
+  });
+  container.appendChild(legend);
+}
+
+function renderComparisonChart() {
+  const funds = fundsSnapshot();
+  const container = document.getElementById("comparisonChart");
+  container.innerHTML = "";
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;font-weight:600;color:#3a3a3a;margin-bottom:10px;";
+  title.textContent = "Estimated value — last 3 published NAV sessions";
+  container.appendChild(title);
+
+  const last3 = funds.map(f => f.history.slice(-3));
+  const sessionLabels = last3[0].map(h => h[0]);
+  const allHeights = funds.map((f, fi) => last3[fi].map(h => f.units * h[1]));
+  const overallMax = Math.max(...allHeights.flat());
+
+  const W = 900, H = 380;
+  const pad = { l: 65, r: 20, t: 30, b: 90 };
+  const innerW = W - pad.l - pad.r, innerH = H - pad.t - pad.b;
+  const yMax = overallMax * 1.6;
+  const yPos = v => pad.t + innerH - (v / yMax) * innerH;
+
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, xmlns: svgns }, container);
+
+  const ticks = 5;
+  for (let i = 0; i <= ticks; i++) {
+    const v = (i / ticks) * yMax;
+    const y = yPos(v);
+    el("line", { x1: pad.l, x2: W - pad.r, y1: y, y2: y, stroke: "#eeece7", "stroke-width": 1 }, svg);
+    const t = el("text", { x: pad.l - 8, y: y + 4, "text-anchor": "end", "font-size": 10, fill: "#6b6b6b" }, svg);
+    t.textContent = Math.round(v).toLocaleString("en-MY");
+  }
+  const ylab = el("text", { x: 14, y: pad.t + innerH / 2, "text-anchor": "middle", "font-size": 11, fill: "#3a3a3a",
+    transform: `rotate(-90 14 ${pad.t + innerH / 2})` }, svg);
+  ylab.textContent = "Est. Value (RM)";
+
+  const groupW = innerW / funds.length;
+  const barW = groupW / 3 * 0.62;
+  const shortNames = ["Islamic APAC Dynamic Equity", "DALI APAC Equity Growth", "Greater China Equity (MYR)"];
+
+  funds.forEach((f, fi) => {
+    const groupCx = pad.l + groupW * fi + groupW / 2;
+    for (let si = 0; si < 3; si++) {
+      const h = allHeights[fi][si];
+      const barX = groupCx - barW * 1.5 + si * barW;
+      const barY = yPos(h);
+      const barH = (pad.t + innerH) - barY;
+      el("rect", { x: barX, y: barY, width: barW * 0.92, height: barH, fill: SESSION_COLORS[si], rx: 2 }, svg);
+      const cx = barX + (barW * 0.92) / 2, cy = barY + barH / 2;
+      const vtext = el("text", {
+        x: 0, y: 0, "text-anchor": "middle", "dominant-baseline": "middle",
+        "font-size": 13, "font-weight": "bold", fill: "#000000",
+        transform: `translate(${cx} ${cy}) rotate(-90)`
+      }, svg);
+      vtext.textContent = Math.round(h).toLocaleString("en-MY");
+
+      if (si > 0) {
+        const prev = allHeights[fi][si - 1];
+        const diff = h - prev;
+        const diffPct = prev ? (diff / prev) * 100 : 0;
+        const sign = diff >= 0 ? "+" : "";
+        const color = diff >= 0 ? "#1f7a4d" : "#b3441f";
+        const anchorY = barY - 8;
+        const dtext = el("text", {
+          x: 0, y: 0, "text-anchor": "start", "dominant-baseline": "middle",
+          "font-size": 10.5, "font-weight": "bold", fill: color,
+          transform: `translate(${cx} ${anchorY}) rotate(-90)`
+        }, svg);
+        dtext.textContent = `${sign}${Math.round(diff).toLocaleString("en-MY")} (${sign}${diffPct.toFixed(2)}%)`;
+      }
+    }
+    const label = el("text", { x: groupCx, y: H - pad.b + 20, "text-anchor": "middle", "font-size": 11, fill: "#3a3a3a" }, svg);
+    const words = shortNames[fi].split(" ");
+    const mid = Math.ceil(words.length / 2);
+    el("tspan", { x: groupCx, dy: 0 }, label).textContent = words.slice(0, mid).join(" ");
+    el("tspan", { x: groupCx, dy: 14 }, label).textContent = words.slice(mid).join(" ");
+  });
+
+  const legend = document.createElement("div");
+  legend.style.cssText = "display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-top:10px;font-size:11px;color:#3a3a3a;";
+  sessionLabels.forEach((lab, i) => {
+    const item = document.createElement("span");
+    item.style.cssText = "display:inline-flex;align-items:center;gap:6px;";
+    item.innerHTML = `<span style="width:10px;height:10px;background:${SESSION_COLORS[i]};display:inline-block;border-radius:2px;"></span>${lab} (2026)`;
+    legend.appendChild(item);
+  });
+  container.appendChild(legend);
+}
+
+renderTab("today");
+renderTab("yesterday");
+renderTab("2days");
+renderComparisonChart();
+
+window.addEventListener("resize", () => {
+  renderTab("today"); renderTab("yesterday"); renderTab("2days"); renderComparisonChart();
+  document.querySelectorAll(".tab-panel").forEach(p => { if (!p.classList.contains("active")) return; });
+});
+</script>
+</body>
+</html>
