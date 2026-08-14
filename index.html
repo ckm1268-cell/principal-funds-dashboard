@@ -210,7 +210,21 @@ function fundsSnapshot() {
     { name: "Greater China Equity (Class MYR)", isin: "MYU1000CB001", units: 42026.2, baselineNav: 1.2895, nav: 1.2705, dailyChangePct: 0.43, history: realHistory.greaterChina }
   ];
 }
-const datasets = { today: fundsSnapshot(), yesterday: fundsSnapshot(), "2days": fundsSnapshot() };
+function snapshotAtOffset(offset) {
+  // offset 0 = latest published NAV session ("Today"), 1 = the session before
+  // that ("Yesterday"), 2 = the one before that ("2 Days Ago"). Pulled from each
+  // fund's own history array of real published NAV points -- never fabricated,
+  // just a different real historical session shown per tab.
+  return fundsSnapshot().map(f => {
+    const hist = f.history;
+    const idx = Math.max(hist.length - 1 - offset, 0);
+    const nav = hist[idx][1];
+    const prevIdx = idx - 1;
+    const dailyChangePct = prevIdx >= 0 ? ((nav - hist[prevIdx][1]) / hist[prevIdx][1]) * 100 : 0;
+    return { ...f, nav, dailyChangePct };
+  });
+}
+const datasets = { today: snapshotAtOffset(0), yesterday: snapshotAtOffset(1), "2days": snapshotAtOffset(2) };
 
 const LINE_COLORS = ["#2f6fed", "#e08a2c", "#1f7a4d"];
 const SESSION_COLORS = ["#8a8a8a", "#e08a2c", "#2f6fed"];
