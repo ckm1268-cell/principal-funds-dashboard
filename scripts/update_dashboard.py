@@ -15,9 +15,12 @@ Data-integrity rules (do not relax these):
     not a bug (Principal typically publishes NAV with a 1-2 business day lag).
   - The "nav" and "dailyChangePct" shown in the summary cards/table must
     always equal the LAST point in that fund's own history array.
-  - Today / Yesterday / Past Two Days tabs show the same underlying
-    snapshot (since NAV data itself doesn't change within a lag window) —
-    only the "checked" date in each subtitle differs.
+  - Today / Yesterday / Past Two Days tabs each show a different real
+    historical NAV session per fund (offsets 0/1/2 back from the latest
+    point in that fund's history array) via snapshotAtOffset() in
+    index.html's script. If two consecutive sessions happen to share the
+    same NAV (no new print published), that's a real coincidence, not a
+    bug -- but the tabs must never all point at the identical index.
 """
 
 import csv
@@ -121,6 +124,7 @@ def build_fund_data(fund):
         "latest_date": latest_date,
         "nav": latest_nav,
         "daily_change_pct": daily_change_pct,
+        "recent": recent,
     }
 
 
@@ -186,12 +190,18 @@ def main():
         html, count=1, flags=re.S,
     )
 
-    # 3. Subtitles for each tab
-    islamic_latest = next(f for f in funds if f["key"] == "islamic")["latest_date"]
-    for tab_id, checked in (("today", today), ("yesterday", yesterday), ("2days", two_days_ago)):
+    # 3. Subtitles for each tab -- each tab shows the actual historical NAV
+    # date for that offset (0 = latest/"today", 1 = "yesterday", 2 = "2 days
+    # ago"), matching the snapshotAtOffset() logic in index.html's script.
+    islamic_recent = next(f for f in funds if f["key"] == "islamic")["recent"]
+    def published_date_at(offset):
+        idx = max(len(islamic_recent) - 1 - offset, 0)
+        return islamic_recent[idx][0]
+    for tab_id, checked, offset in (("today", today, 0), ("yesterday", yesterday, 1), ("2days", two_days_ago, 2)):
+        published = published_date_at(offset)
         html = re.sub(
             rf'(id="subtitle-{tab_id}">)[^<]*(</div>)',
-            lambda m, c=checked: m.group(1) + fmt_subtitle(islamic_latest, c) + m.group(2),
+            lambda m, p=published, c=checked: m.group(1) + fmt_subtitle(p, c) + m.group(2),
             html, count=1,
         )
 
