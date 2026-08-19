@@ -18,7 +18,7 @@
 
   <section class="tab-panel active" id="panel-today">
     <div class="daybadge daybadge-today">Today</div>
-    <div class="subtitle" id="subtitle-today">Published NAV as of 14 Aug 2026 · checked 18 Aug 2026</div>
+    <div class="subtitle" id="subtitle-today">Published NAV as of 17 Aug 2026 · checked 19 Aug 2026</div>
     <div class="cards">
       <div class="card"><div class="label">Total portfolio value</div><div class="value" id="totalValue-today">—</div></div>
       <div class="card"><div class="label">Change vs baseline</div><div class="value" id="totalChange-today">—</div></div>
@@ -41,7 +41,7 @@
 
   <section class="tab-panel" id="panel-yesterday">
     <div class="daybadge daybadge-yesterday">Yesterday</div>
-    <div class="subtitle" id="subtitle-yesterday">Published NAV as of 13 Aug 2026 · checked 17 Aug 2026</div>
+    <div class="subtitle" id="subtitle-yesterday">Published NAV as of 14 Aug 2026 · checked 18 Aug 2026</div>
     <div class="cards">
       <div class="card"><div class="label">Total portfolio value</div><div class="value" id="totalValue-yesterday">—</div></div>
       <div class="card"><div class="label">Change vs baseline</div><div class="value" id="totalChange-yesterday">—</div></div>
@@ -63,7 +63,7 @@
 
   <section class="tab-panel" id="panel-2days">
     <div class="daybadge daybadge-2days">2 Days Ago</div>
-    <div class="subtitle" id="subtitle-2days">Published NAV as of 12 Aug 2026 · checked 16 Aug 2026</div>
+    <div class="subtitle" id="subtitle-2days">Published NAV as of 13 Aug 2026 · checked 17 Aug 2026</div>
     <div class="cards">
       <div class="card"><div class="label">Total portfolio value</div><div class="value" id="totalValue-2days">—</div></div>
       <div class="card"><div class="label">Change vs baseline</div><div class="value" id="totalChange-2days">—</div></div>
@@ -199,15 +199,15 @@ function showTab(id, btn) {
 // Verified against principal.com.my NAV history pages on 13 Aug 2026 — no new NAV print
 // has been posted for any of the three funds since 11 Aug 2026.
 const realHistory = {
-  islamic: [["27-07",0.9081],["28-07",0.8317],["29-07",0.7975],["30-07",0.7954],["31-07",0.8862],["03-08",0.8818],["04-08",0.8979],["05-08",0.9255],["06-08",0.8928],["07-08",0.8872],["10-08",0.8980],["11-08",0.9060],["12-08",0.9276],["13-08",0.9586],["14-08",0.9755]],
-  dali: [["27-07",0.8740],["28-07",0.8253],["29-07",0.8029],["30-07",0.8004],["31-07",0.8691],["03-08",0.8574],["04-08",0.8637],["05-08",0.8870],["06-08",0.8655],["07-08",0.8628],["10-08",0.8700],["11-08",0.8769],["12-08",0.8869],["13-08",0.9064],["14-08",0.9134]],
-  greaterChina: [["27-07",1.1996],["28-07",1.1671],["29-07",1.1617],["30-07",1.1709],["31-07",1.1966],["03-08",1.2053],["04-08",1.2243],["05-08",1.2411],["06-08",1.2343],["07-08",1.2586],["10-08",1.2634],["11-08",1.2650],["12-08",1.2705],["13-08",1.2554],["14-08",1.2528]]
+  islamic: [["28-07",0.8317],["29-07",0.7975],["30-07",0.7954],["31-07",0.8862],["03-08",0.8818],["04-08",0.8979],["05-08",0.9255],["06-08",0.8928],["07-08",0.8872],["10-08",0.8980],["11-08",0.9060],["12-08",0.9276],["13-08",0.9586],["14-08",0.9755],["17-08",0.9759]],
+  dali: [["28-07",0.8253],["29-07",0.8029],["30-07",0.8004],["31-07",0.8691],["03-08",0.8574],["04-08",0.8637],["05-08",0.8870],["06-08",0.8655],["07-08",0.8628],["10-08",0.8700],["11-08",0.8769],["12-08",0.8869],["13-08",0.9064],["14-08",0.9134],["17-08",0.9119]],
+  greaterChina: [["28-07",1.1671],["29-07",1.1617],["30-07",1.1709],["31-07",1.1966],["03-08",1.2053],["04-08",1.2243],["05-08",1.2411],["06-08",1.2343],["07-08",1.2586],["10-08",1.2634],["11-08",1.2650],["12-08",1.2705],["13-08",1.2554],["14-08",1.2528],["17-08",1.2558]]
 };
 function fundsSnapshot() {
   return [
-    { name: "Islamic Asia Pacific Dynamic Equity", isin: "MYU1000AA007", units: 74474.83, baselineNav: 1.0396, nav: 0.9755, dailyChangePct: 1.76, history: realHistory.islamic },
-    { name: "DALI Asia Pacific Equity Growth", isin: "MYU1000BD009", units: 76816.72, baselineNav: 0.9549, nav: 0.9134, dailyChangePct: 0.77, history: realHistory.dali },
-    { name: "Greater China Equity (Class MYR)", isin: "MYU1000CB001", units: 42026.2, baselineNav: 1.2895, nav: 1.2528, dailyChangePct: -0.21, history: realHistory.greaterChina }
+    { name: "Islamic Asia Pacific Dynamic Equity", isin: "MYU1000AA007", units: 74474.83, baselineNav: 1.0396, nav: 0.9759, dailyChangePct: 0.04, history: realHistory.islamic },
+    { name: "DALI Asia Pacific Equity Growth", isin: "MYU1000BD009", units: 76816.72, baselineNav: 0.9549, nav: 0.9119, dailyChangePct: -0.16, history: realHistory.dali },
+    { name: "Greater China Equity (Class MYR)", isin: "MYU1000CB001", units: 42026.2, baselineNav: 1.2895, nav: 1.2558, dailyChangePct: 0.24, history: realHistory.greaterChina }
   ];
 }
 function snapshotAtOffset(offset) {
