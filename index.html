@@ -281,12 +281,12 @@ function renderTab(key) {
 function renderTrendChart(funds, container) {
   container.innerHTML = "";
   const W = 900, H = 320;
-  const pad = { l: 55, r: 20, t: 20, b: 70 };
+  const pad = { l: 55, r: 20, t: 30, b: 70 };
   const innerW = W - pad.l - pad.r, innerH = H - pad.t - pad.b;
   const allVals = funds.flatMap(f => f.history.map(h => h[1]));
   let minV = Math.min(...allVals), maxV = Math.max(...allVals);
   const range = (maxV - minV) || 1;
-  minV -= range * 0.1; maxV += range * 0.1;
+  minV -= range * 0.15; maxV += range * 0.15;
   const n = funds[0].history.length;
   const xStep = innerW / (n - 1);
   const xPos = i => pad.l + i * xStep;
@@ -317,12 +317,22 @@ function renderTrendChart(funds, container) {
     transform: `rotate(-90 16 ${pad.t + innerH / 2})` }, svg);
   ylab.textContent = "NAV (RM)";
 
-  // lines + markers
+  // lines + markers + value labels
+  // Stagger each fund's labels above/below its markers (alternating, with a
+  // growing offset) so 3 overlapping lines don't stack labels on each other.
+  const LABEL_DY = [-8, 14, -22];
   funds.forEach((f, fi) => {
     const pts = f.history.map((h, i) => `${xPos(i)},${yPos(h[1])}`).join(" ");
     el("polyline", { points: pts, fill: "none", stroke: LINE_COLORS[fi], "stroke-width": 2 }, svg);
+    const dy = LABEL_DY[fi % LABEL_DY.length];
     f.history.forEach((h, i) => {
       el("circle", { cx: xPos(i), cy: yPos(h[1]), r: 2.5, fill: LINE_COLORS[fi] }, svg);
+      const vt = el("text", {
+        x: xPos(i), y: yPos(h[1]) + dy, "text-anchor": "middle",
+        "font-size": 9, "font-weight": 600, fill: LINE_COLORS[fi],
+        stroke: "#ffffff", "stroke-width": 3, "paint-order": "stroke",
+      }, svg);
+      vt.textContent = h[1].toFixed(4);
     });
   });
 

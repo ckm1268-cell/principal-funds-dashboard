@@ -340,18 +340,30 @@ def build_narrative(summary: dict) -> str:
 def render_trend_chart(results: list[dict], out_path: str) -> None:
     fig, ax = plt.subplots(figsize=(7.5, 4.2), dpi=150)
     colors = ["#2f6fed", "#e08a2c", "#1f7a4d"]
-    for r, color in zip(results, colors):
+    # Stagger each fund's value labels above/below its markers (alternating,
+    # with growing offset) so 3 overlapping lines don't stack labels on top
+    # of one another.
+    label_offsets = [8, -11, 14]
+    for idx, (r, color) in enumerate(zip(results, colors)):
         if not r["history"]:
             continue
         xs = [h["date"] for h in r["history"]]
         ys = [h["nav"] for h in r["history"]]
         ax.plot(xs, ys, marker="o", markersize=3, linewidth=1.6, label=r["short"], color=color)
+        dy = label_offsets[idx % len(label_offsets)]
+        for x, y in zip(xs, ys):
+            ax.annotate(
+                f"{y:.4f}", (x, y), textcoords="offset points", xytext=(0, dy),
+                ha="center", va=("bottom" if dy >= 0 else "top"),
+                fontsize=6, color=color,
+            )
     ax.set_ylabel("NAV (RM)")
     ax.tick_params(axis="x", rotation=40, labelsize=8)
     ax.tick_params(axis="y", labelsize=8)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.grid(axis="y", linestyle="-", linewidth=0.5, color="#eeece7")
+    ax.margins(y=0.22)  # extra vertical headroom so the value labels aren't clipped
     fig.subplots_adjust(bottom=0.42, top=0.95, left=0.1, right=0.97)
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.32), ncol=1, fontsize=8, frameon=False)
     fig.savefig(out_path, facecolor="white")
