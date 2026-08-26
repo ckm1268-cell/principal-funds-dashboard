@@ -1,0 +1,49 @@
+name: Principal Funds Daily NAV Dashboard
+
+on:
+  schedule:
+    # 01:00 UTC = 09:00 Asia/Kuala_Lumpur (MYT has no DST, always UTC+8).
+    # Mon-Fri only; the script additionally skips Malaysian public holidays.
+    - cron: "0 1 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: "Run even if today is a weekend/holiday (for testing)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  nav-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch NAV, build PDF, send email
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM: ${{ secrets.RESEND_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force_run && '1' || '' }}
+        run: python scripts/fetch_nav_and_report.py
+
+      - name: Upload PDF as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: principal-funds-dashboard
+          path: principal-funds-dashboard-*.pdf
+          if-no-files-found: ignore
+          retention-days: 30

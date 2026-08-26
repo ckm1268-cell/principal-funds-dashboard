@@ -210,7 +210,7 @@ def main():
     stamp = f"Auto-updated by GitHub Actions · last run {today.strftime('%-d %b %Y')} (Asia/Kuala_Lumpur)"
     if 'id="last-updated"' in html:
         html = re.sub(
-            r'(id="last-updated">)[^<]*(</div>)',
+            r'(id="last-updated"[^>]*>)[^<]*(</div>)',
             lambda m: m.group(1) + stamp + m.group(2),
             html, count=1,
         )
