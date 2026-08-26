@@ -276,7 +276,8 @@ def update_dashboard_html(results: list[dict], today: date, now: datetime) -> bo
     # between id="last-updated" and the closing '>' (a previous version of
     # this regex required an exact match and silently stopped updating for
     # weeks once a style attribute was added to that div).
-    stamp = f"Auto-updated by GitHub Actions · last run {today.strftime('%-d %b %Y')} (Asia/Kuala_Lumpur)"
+    stamp = (f"Auto-updated by GitHub Actions · last run "
+             f"{now.strftime('%-d %b %Y, %-I:%M %p')} (Asia/Kuala_Lumpur)")
     if re.search(r'id="last-updated"', html):
         html = safe_sub(r'(id="last-updated"[^>]*>)[^<]*(</div>)',
                          lambda m: m.group(1) + stamp + m.group(2), html, "last-updated")
