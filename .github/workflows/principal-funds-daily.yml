@@ -1,4 +1,13 @@
-name: Principal Funds Daily NAV Dashboard
+name: Principal Funds Daily Pipeline
+
+# This workflow REPLACES the two previously-separate workflows:
+#   - "Daily NAV dashboard update"        (updated index.html)
+#   - "Principal Funds Daily NAV Dashboard" (emailed the narrative report)
+# Both used to run on the exact same schedule and each ended with its own
+# `git push` to main — a real race condition, plus a risk of the dashboard
+# and the email disagreeing on the same day's NAV (two independent fetches).
+# This single workflow fetches NAV once, updates the dashboard, commits,
+# and only then sends the email — see scripts/daily_pipeline.py for details.
 
 on:
   schedule:
@@ -15,8 +24,12 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: principal-funds-daily
+  cancel-in-progress: false
+
 jobs:
-  nav-report:
+  nav-pipeline:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -31,29 +44,35 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Fetch NAV, build PDF, send email
+      - name: Build — fetch NAV once, update dashboard, build PDF
+        id: build
+        env:
+          FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force_run && '1' || '' }}
+        run: python scripts/daily_pipeline.py build
+
+      - name: Commit dashboard + illustrated PDF
+        if: steps.build.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html reports
+          if ! git diff --quiet --cached; then
+            git commit -m "Daily NAV update: $(date -u +'%Y-%m-%d')"
+            git push
+          else
+            echo "No changes to commit."
+          fi
+
+      - name: Notify — send narrative email
+        if: steps.build.outputs.skip != 'true'
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM: ${{ secrets.RESEND_FROM }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force_run && '1' || '' }}
-        run: python scripts/fetch_nav_and_report.py
-
-      - name: Commit illustrated PDF to reports/ (the "outputs folder" equivalent)
-        if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -d reports ] && ! git diff --quiet -- reports; then
-            git add reports
-            git commit -m "Daily NAV report PDF: $(date -u +'%Y-%m-%d')"
-            git push
-          else
-            echo "No new report file to commit."
-          fi
+        run: python scripts/daily_pipeline.py notify
 
       - name: Upload PDF as workflow artifact (backup copy, 30-day retention)
-        if: always()
+        if: steps.build.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: principal-funds-dashboard

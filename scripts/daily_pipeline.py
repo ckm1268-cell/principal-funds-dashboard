@@ -1,30 +1,42 @@
 #!/usr/bin/env python3
 """
-Principal Funds Daily NAV Tracker
-==================================
-Fetches the latest NAV for three Principal Asset Management (Malaysia) unit
-trust funds, computes portfolio value and day-over-day change, builds an
-illustrated PDF (with a NAV trend chart), and emails a short narrative
-summary via the Resend API — matching the style of the reports this project
-used to send from a Claude scheduled task.
+Principal Funds daily pipeline — single source of truth for NAV data used by
+BOTH the GitHub Pages dashboard (index.html) and the narrative email report.
 
-Runs Mon-Fri only, skipping Malaysian public holidays (via the Nager.Date
-public holiday API). Designed to run inside GitHub Actions.
+Why this file exists: this repo used to run two independent workflows that
+each fetched NAV from principal.com.my and each committed to `main`. Same
+schedule + two independent git pushes = a real race condition (second push
+gets rejected), and two independent fetches could in principle disagree with
+each other on the same day. Merging into one fetch -> two consumers removes
+both problems and halves the load on Principal's public endpoint.
 
-Environment variables required:
-    RESEND_API_KEY   - Resend API key (repo secret)
-    RESEND_FROM      - verified "from" address, e.g. onboarding@resend.dev
-    EMAIL_TO         - comma-separated recipient list
+Run as two subcommands from the workflow, with the git commit happening in
+between them:
 
-Optional:
-    FORCE_RUN        - set to "1" to bypass the weekday/holiday skip check
-                        (useful for manual workflow_dispatch testing)
+    python scripts/daily_pipeline.py build
+        Fetch NAV for all 3 funds (once), update index.html, build the
+        illustrated PDF + trend chart into reports/, and cache the narrative
+        text + run date to .pipeline_state.json for the notify step. Writes
+        `skip=true|false` to $GITHUB_OUTPUT so the workflow can skip the
+        commit/email steps on a non-trading day without treating it as an
+        error.
+
+    python scripts/daily_pipeline.py notify
+        Read .pipeline_state.json (written by `build`) and send the
+        narrative email via Resend. Deliberately does NOT redo the fetch —
+        it reports exactly what `build` already computed and committed.
+
+This ordering matters: the dashboard/PDF are committed to the repo BEFORE
+the email is attempted, so a Resend outage or bad API key never blocks the
+dashboard update — only the (best-effort) notification.
 """
 
 import base64
 import csv
 import io
+import json
 import os
+import re
 import sys
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -38,15 +50,15 @@ from fpdf.enums import XPos, YPos
 
 MYT = ZoneInfo("Asia/Kuala_Lumpur")
 
-# Fund configuration. units / baseline_nav mirror the values used by the
-# GitHub Pages dashboard (scripts/update_dashboard.py) so both reports agree
-# on portfolio value. nav_node is the Principal Malaysia website "node" ID
-# behind each fund's public NAV-history CSV export.
+# Single fund configuration shared by the dashboard (index.html) and the
+# email report. units / baseline_nav are your personal holdings (shared
+# across both outputs so they can never drift apart from each other).
 FUNDS = [
     {
         "key": "islamic",
         "name": "Principal Islamic Asia Pacific Dynamic Equity Fund",
         "short": "Islamic Asia Pacific Dynamic Equity",
+        "isin": "MYU1000AA007",
         "nav_node": 1280,
         "units": 74474.83,
         "baseline_nav": 1.0396,
@@ -55,6 +67,7 @@ FUNDS = [
         "key": "dali",
         "name": "Principal DALI Asia Pacific Equity Growth Fund",
         "short": "DALI Asia Pacific Equity Growth",
+        "isin": "MYU1000BD009",
         "nav_node": 1270,
         "units": 76816.72,
         "baseline_nav": 0.9549,
@@ -63,6 +76,7 @@ FUNDS = [
         "key": "greaterChina",
         "name": "Principal Greater China Equity Fund (Class MYR)",
         "short": "Greater China Equity (Class MYR)",
+        "isin": "MYU1000CB001",
         "nav_node": 6677,
         "units": 42026.20,
         "baseline_nav": 1.2895,
@@ -73,31 +87,46 @@ NAV_CSV_URL = "https://www.principal.com.my/en/nav/{node}"
 HOLIDAY_API_URL = "https://date.nager.at/api/v3/publicholidays/{year}/MY"
 DASHBOARD_URL = "https://ckm1268-cell.github.io/principal-funds-dashboard/"
 FLAG_THRESHOLD_PCT = 2.0
-HISTORY_POINTS = 15  # trading sessions kept for the trend chart
+HISTORY_POINTS = 15  # trading sessions kept for the trend chart / index.html
+HTML_PATH = "index.html"
+STATE_PATH = ".pipeline_state.json"
 
+
+def set_github_output(key: str, value: str) -> None:
+    path = os.environ.get("GITHUB_OUTPUT")
+    if path:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"{key}={value}\n")
+    else:
+        print(f"[output] {key}={value}")
+
+
+# ---------------------------------------------------------------------------
+# Fetch (single source of truth for both outputs)
+# ---------------------------------------------------------------------------
 
 def is_working_day(today: date) -> tuple[bool, str]:
-    """Return (should_run, reason_if_skipped)."""
     if today.weekday() >= 5:  # 5=Sat, 6=Sun
         return False, "weekend"
-
     try:
         resp = requests.get(HOLIDAY_API_URL.format(year=today.year), timeout=15)
         resp.raise_for_status()
         holidays = {h["date"] for h in resp.json()}
         if today.isoformat() in holidays:
             return False, "Malaysian public holiday"
-    except Exception as exc:  # noqa: BLE001 - don't let holiday-check failure block the run
+    except Exception as exc:  # noqa: BLE001
         print(f"[warn] holiday check failed ({exc}); proceeding anyway", file=sys.stderr)
-
     return True, ""
 
 
 def fetch_nav_history(node_id: int, days_back: int = 35) -> list[dict]:
-    """Fetch recent NAV rows for one fund as a list of dicts, oldest first."""
+    """Fetch recent NAV rows for one fund, oldest first. The date-range params
+    put today's date in the URL, so the request naturally busts any
+    per-URL CDN caching on Principal's side (a real issue we hit with the
+    old no-date-filter fetch, which could return the same cached response
+    for days)."""
     today = datetime.now(MYT).date()
     start = today - timedelta(days=days_back)
-
     params = {
         "field_fund_nav_date_value[min]": start.strftime("%d-%m-%Y"),
         "field_fund_nav_date_value[max]": today.strftime("%d-%m-%Y"),
@@ -121,16 +150,10 @@ def fetch_nav_history(node_id: int, days_back: int = 35) -> list[dict]:
         return rows
 
     rows = parse(resp.text)
-
-    # If the windowed request came back empty (site quirks, holidays, etc.)
-    # retry once without a date filter as a fallback.
     if not rows:
-        resp = requests.get(
-            NAV_CSV_URL.format(node=node_id), params={"_format": "csv"}, timeout=30
-        )
+        resp = requests.get(NAV_CSV_URL.format(node=node_id), params={"_format": "csv"}, timeout=30)
         resp.raise_for_status()
         rows = parse(resp.text)
-
     return rows[-HISTORY_POINTS:]
 
 
@@ -145,10 +168,9 @@ def build_fund_results() -> list[dict]:
                 entry["latest"] = rows[-1]
             if len(rows) >= 2:
                 entry["previous"] = rows[-2]
-                latest_nav = rows[-1]["nav"]
                 prev_nav = rows[-2]["nav"]
                 if prev_nav:
-                    entry["pct_change"] = (latest_nav - prev_nav) / prev_nav * 100
+                    entry["pct_change"] = (rows[-1]["nav"] - prev_nav) / prev_nav * 100
             if not rows:
                 entry["error"] = "No NAV data returned"
         except Exception as exc:  # noqa: BLE001
@@ -158,79 +180,152 @@ def build_fund_results() -> list[dict]:
 
 
 def build_portfolio_summary(results: list[dict]) -> dict:
-    """Aggregate portfolio value, day-over-day change, freshness, and flags."""
     ok = [r for r in results if r["latest"] and not r["error"]]
     unavailable = [r for r in results if r["error"] or not r["latest"]]
 
     total_today = sum(r["latest"]["nav"] * r["units"] for r in ok)
-    # Use previous NAV where available; fall back to latest (no day-over-day
-    # move assumed) so one missing "previous" doesn't wreck the whole total.
     total_prev = sum((r["previous"]["nav"] if r["previous"] else r["latest"]["nav"]) * r["units"] for r in ok)
     diff = total_today - total_prev
     pct = (diff / total_prev * 100) if total_prev else 0.0
 
-    dated = [r for r in ok]
-    max_date = max((r["latest"]["date"] for r in dated), default=None)
-    lagging = [r for r in dated if r["latest"]["date"] != max_date]
+    max_date = max((r["latest"]["date"] for r in ok), default=None)
+    lagging = [r for r in ok if r["latest"]["date"] != max_date]
 
     flagged = [r for r in ok if r["pct_change"] is not None and abs(r["pct_change"]) > FLAG_THRESHOLD_PCT]
     movers = [r for r in ok if r["pct_change"] is not None]
     largest_mover = max(movers, key=lambda r: abs(r["pct_change"])) if movers else None
 
     return {
-        "total_today": total_today,
-        "total_prev": total_prev,
-        "diff": diff,
-        "pct": pct,
-        "max_date": max_date,
-        "lagging": lagging,
-        "flagged": flagged,
-        "largest_mover": largest_mover,
-        "unavailable": unavailable,
+        "total_today": total_today, "total_prev": total_prev, "diff": diff, "pct": pct,
+        "max_date": max_date, "lagging": lagging, "flagged": flagged,
+        "largest_mover": largest_mover, "unavailable": unavailable,
     }
 
 
-def build_narrative(results: list[dict], summary: dict, run_date: date) -> str:
+# ---------------------------------------------------------------------------
+# Consumer 1: index.html (GitHub Pages dashboard)
+# ---------------------------------------------------------------------------
+
+def update_dashboard_html(results: list[dict], today: date) -> bool:
+    """Rewrite index.html in place. Returns True if it changed."""
+    if not os.path.exists(HTML_PATH):
+        print(f"[warn] {HTML_PATH} not found — skipping dashboard update", file=sys.stderr)
+        return False
+
+    with open(HTML_PATH, "r", encoding="utf-8") as fh:
+        html = read_html = fh.read()
+
+    def safe_sub(pattern, repl, html, label, flags=0):
+        new_html, n = re.subn(pattern, repl, html, count=1, flags=flags)
+        if n == 0:
+            print(f"[warn] template pattern not found for '{label}' — site structure may have "
+                  f"drifted; that section was left unchanged.", file=sys.stderr)
+            return html
+        return new_html
+
+    # 1. realHistory object
+    def _history_array(history):
+        points = []
+        for h in history:
+            day_label = h["date"].strftime("%d-%m")
+            points.append('["%s",%.4f]' % (day_label, h["nav"]))
+        return "[" + ",".join(points) + "]"
+
+    history_entries = ",\n  ".join(
+        "%s: %s" % (r["key"], _history_array(r["history"]))
+        for r in results if r["history"]
+    )
+    html = safe_sub(r"const realHistory = \{.*?\};",
+                     f"const realHistory = {{\n  {history_entries}\n}};", html, "realHistory", flags=re.S)
+
+    # 2. fundsSnapshot() literal
+    fund_lines = []
+    for r in results:
+        if not r["latest"]:
+            continue
+        fund_lines.append(
+            '    { name: "%s", isin: "%s", units: %s, baselineNav: %s, '
+            'nav: %.4f, dailyChangePct: %.2f, history: realHistory.%s }'
+            % (r["name"], r["isin"], r["units"], r["baseline_nav"],
+               r["latest"]["nav"], r["pct_change"] or 0.0, r["key"])
+        )
+    snapshot_body = ",\n".join(fund_lines)
+    html = safe_sub(r"function fundsSnapshot\(\) \{\s*return \[.*?\];\s*\}",
+                     f"function fundsSnapshot() {{\n  return [\n{snapshot_body}\n  ];\n}}",
+                     html, "fundsSnapshot", flags=re.S)
+
+    # 3. Per-tab subtitles (today/yesterday/2days), using the Islamic fund's
+    # own history as the reference session list (same convention as before).
+    ref = next((r for r in results if r["key"] == "islamic" and r["history"]), None)
+    if ref:
+        yesterday, two_days_ago = today - timedelta(days=1), today - timedelta(days=2)
+        for tab_id, checked, offset in (("today", today, 0), ("yesterday", yesterday, 1), ("2days", two_days_ago, 2)):
+            idx = max(len(ref["history"]) - 1 - offset, 0)
+            published = ref["history"][idx]["date"]
+            subtitle = (f"Published NAV as of {published.strftime('%-d %b %Y')} "
+                        f"· checked {checked.strftime('%-d %b %Y')}")
+            html = safe_sub(rf'(id="subtitle-{tab_id}">)[^<]*(</div>)',
+                             lambda m, s=subtitle: m.group(1) + s + m.group(2),
+                             html, f"subtitle-{tab_id}")
+
+    # 4. Footer "last updated" stamp. Pattern tolerates any attributes
+    # between id="last-updated" and the closing '>' (a previous version of
+    # this regex required an exact match and silently stopped updating for
+    # weeks once a style attribute was added to that div).
+    stamp = f"Auto-updated by GitHub Actions · last run {today.strftime('%-d %b %Y')} (Asia/Kuala_Lumpur)"
+    if re.search(r'id="last-updated"', html):
+        html = safe_sub(r'(id="last-updated"[^>]*>)[^<]*(</div>)',
+                         lambda m: m.group(1) + stamp + m.group(2), html, "last-updated")
+    else:
+        html = html.replace(
+            "</body>",
+            f'<div id="last-updated" style="text-align:center;font-size:11px;'
+            f'color:#a8a8a4;padding-bottom:16px;">{stamp}</div>\n</body>',
+        )
+
+    if html == read_html:
+        print("No changes to index.html this run.")
+        return False
+    with open(HTML_PATH, "w", encoding="utf-8") as fh:
+        fh.write(html)
+    print("index.html updated.")
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Consumer 2: narrative email + illustrated PDF
+# ---------------------------------------------------------------------------
+
+def build_narrative(summary: dict) -> str:
     diff, pct = summary["diff"], summary["pct"]
     if diff >= 0:
-        value_line = (
-            f"Total portfolio value is RM {summary['total_today']:,.2f}, "
-            f"up +RM {diff:,.2f} (+{pct:.2f}%) vs yesterday."
-        )
+        value_line = (f"Total portfolio value is RM {summary['total_today']:,.2f}, "
+                       f"up +RM {diff:,.2f} (+{pct:.2f}%) vs yesterday.")
     else:
-        value_line = (
-            f"Total portfolio value is RM {summary['total_today']:,.2f}, "
-            f"down RM {abs(diff):,.2f} ({pct:.2f}%) vs yesterday."
-        )
+        value_line = (f"Total portfolio value is RM {summary['total_today']:,.2f}, "
+                       f"down RM {abs(diff):,.2f} ({pct:.2f}%) vs yesterday.")
 
     if summary["max_date"] is None:
         freshness_line = "NAV data could not be retrieved for any fund this run."
     elif not summary["lagging"]:
         freshness_line = f"All three funds are now published through {summary['max_date'].strftime('%-d %b %Y')}."
     else:
-        lag_names = ", ".join(
-            f"{r['short']} ({r['latest']['date'].strftime('%-d %b %Y')})" for r in summary["lagging"]
-        )
-        freshness_line = (
-            f"Published through {summary['max_date'].strftime('%-d %b %Y')} for most funds; "
-            f"still lagging: {lag_names}."
-        )
+        lag_names = ", ".join(f"{r['short']} ({r['latest']['date'].strftime('%-d %b %Y')})" for r in summary["lagging"])
+        freshness_line = (f"Published through {summary['max_date'].strftime('%-d %b %Y')} for most funds; "
+                           f"still lagging: {lag_names}.")
 
     if summary["unavailable"]:
         names = ", ".join(r["name"] for r in summary["unavailable"])
         freshness_line += f" Note: could not fetch data for {names} this run — excluded from the total above."
 
     if summary["flagged"]:
-        names = ", ".join(
-            f"{r['short']} {'+' if r['pct_change'] >= 0 else ''}{r['pct_change']:.2f}%" for r in summary["flagged"]
-        )
+        names = ", ".join(f"{r['short']} {'+' if r['pct_change'] >= 0 else ''}{r['pct_change']:.2f}%"
+                           for r in summary["flagged"])
         flag_line = f"{len(summary['flagged'])} fund(s) flagged this session (>{FLAG_THRESHOLD_PCT:.0f}% move): {names}."
     elif summary["largest_mover"]:
         m = summary["largest_mover"]
-        flag_line = (
-            f"No funds flagged this session (largest move: {m['short']} "
-            f"{'+' if m['pct_change'] >= 0 else ''}{m['pct_change']:.2f}%)."
-        )
+        flag_line = (f"No funds flagged this session (largest move: {m['short']} "
+                     f"{'+' if m['pct_change'] >= 0 else ''}{m['pct_change']:.2f}%).")
     else:
         flag_line = "No day-over-day comparison available yet for any fund."
 
@@ -274,7 +369,6 @@ def _wrapped(pdf: FPDF, h: float, text: str) -> None:
 def build_pdf(results: list[dict], summary: dict, run_date: date, chart_path: str) -> bytes:
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.add_page()
-
     pdf.set_font("Helvetica", "B", 16)
     _line(pdf, 10, "Principal Funds - Daily NAV Dashboard")
     pdf.set_font("Helvetica", "", 10)
@@ -284,7 +378,6 @@ def build_pdf(results: list[dict], summary: dict, run_date: date, chart_path: st
     pdf.ln(3)
     pdf.set_text_color(0, 0, 0)
 
-    # Summary cards
     pdf.set_font("Helvetica", "B", 12)
     diff, pct = summary["diff"], summary["pct"]
     color = (0, 128, 0) if diff >= 0 else (200, 0, 0)
@@ -293,20 +386,16 @@ def build_pdf(results: list[dict], summary: dict, run_date: date, chart_path: st
     pdf.set_text_color(*color)
     _line(pdf, 7, f"Change vs yesterday: {sign}RM {diff:,.2f} ({sign}{pct:.2f}%)")
     pdf.set_text_color(0, 0, 0)
-    flagged_n = len(summary["flagged"])
-    _line(pdf, 7, f"Funds flagged (>{FLAG_THRESHOLD_PCT:.0f}% move): {flagged_n} of {len(results)}")
+    _line(pdf, 7, f"Funds flagged (>{FLAG_THRESHOLD_PCT:.0f}% move): {len(summary['flagged'])} of {len(results)}")
     pdf.ln(4)
 
-    # Trend chart
     if os.path.exists(chart_path):
         pdf.image(chart_path, x=15, w=180)
         pdf.ln(3)
 
-    # Per-fund table
     pdf.set_font("Helvetica", "B", 10)
     col_w = [70, 22, 28, 24, 24, 22]
-    headers = ["Fund", "NAV", "Est. Value", "1-day", "NAV date", "Flag"]
-    for w, h in zip(col_w, headers):
+    for w, h in zip(col_w, ["Fund", "NAV", "Est. Value", "1-day", "NAV date", "Flag"]):
         pdf.cell(w, 7, h, border=1)
     pdf.ln(7)
     pdf.set_font("Helvetica", "", 9)
@@ -317,19 +406,11 @@ def build_pdf(results: list[dict], summary: dict, run_date: date, chart_path: st
             continue
         latest = r["latest"]
         value = latest["nav"] * r["units"]
-        pct_txt = "n/a"
-        flag_txt = ""
+        pct_txt, flag_txt = "n/a", ""
         if r["pct_change"] is not None:
             pct_txt = f"{'+' if r['pct_change'] >= 0 else ''}{r['pct_change']:.2f}%"
             flag_txt = "FLAG" if abs(r["pct_change"]) > FLAG_THRESHOLD_PCT else "OK"
-        row = [
-            r["short"],
-            f"{latest['nav']:.4f}",
-            f"{value:,.0f}",
-            pct_txt,
-            latest["date"].strftime("%d %b"),
-            flag_txt,
-        ]
+        row = [r["short"], f"{latest['nav']:.4f}", f"{value:,.0f}", pct_txt, latest["date"].strftime("%d %b"), flag_txt]
         for w, val in zip(col_w, row):
             pdf.cell(w, 7, val, border=1)
         pdf.ln(7)
@@ -337,15 +418,11 @@ def build_pdf(results: list[dict], summary: dict, run_date: date, chart_path: st
     pdf.ln(4)
     pdf.set_font("Helvetica", "I", 8)
     pdf.set_text_color(130, 130, 130)
-    _wrapped(
-        pdf,
-        5,
+    _wrapped(pdf, 5,
         "Automated report generated by a scheduled GitHub Actions workflow. NAV figures are "
         "sourced from principal.com.my's public NAV history export and reflect the most recent "
         "business day for which data has been published; this may lag today's date by one or "
-        "more business days. Estimated value = published NAV x unit holdings.",
-    )
-
+        "more business days. Estimated value = published NAV x unit holdings.")
     return bytes(pdf.output())
 
 
@@ -355,9 +432,7 @@ def send_email(narrative: str, run_date: date) -> None:
     to_addrs = [a.strip() for a in os.environ["EMAIL_TO"].split(",") if a.strip()]
 
     html_body = "".join(f"<p>{para}</p>" for para in narrative.split("\n\n"))
-    html_body = html_body.replace(
-        DASHBOARD_URL, f'<a href="{DASHBOARD_URL}">{DASHBOARD_URL}</a>'
-    )
+    html_body = html_body.replace(DASHBOARD_URL, f'<a href="{DASHBOARD_URL}">{DASHBOARD_URL}</a>')
 
     payload = {
         "from": from_addr,
@@ -366,12 +441,10 @@ def send_email(narrative: str, run_date: date) -> None:
         "html": f'<div style="font-family:Arial,sans-serif;font-size:14px;color:#222">{html_body}</div>',
         "text": narrative,
     }
-
     resp = requests.post(
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        json=payload,
-        timeout=30,
+        json=payload, timeout=30,
     )
     if resp.status_code >= 300:
         print(f"[error] Resend API returned {resp.status_code}: {resp.text}", file=sys.stderr)
@@ -379,13 +452,18 @@ def send_email(narrative: str, run_date: date) -> None:
     print(f"Email sent: {resp.json()}")
 
 
-def main() -> None:
+# ---------------------------------------------------------------------------
+# Subcommands
+# ---------------------------------------------------------------------------
+
+def cmd_build() -> None:
     today = datetime.now(MYT).date()
 
     if os.environ.get("FORCE_RUN") != "1":
         should_run, reason = is_working_day(today)
         if not should_run:
             print(f"Skipping run: {reason} ({today.isoformat()})")
+            set_github_output("skip", "true")
             return
 
     results = build_fund_results()
@@ -395,13 +473,13 @@ def main() -> None:
         if r["error"]:
             print(f"[warn] {r['name']}: {r['error']}", file=sys.stderr)
         elif r["latest"]:
-            print(f"  {r['short']}: NAV {r['latest']['nav']:.4f} as of {r['latest']['date']} "
-                  f"({r['pct_change']:+.2f}%)" if r["pct_change"] is not None
-                  else f"  {r['short']}: NAV {r['latest']['nav']:.4f} as of {r['latest']['date']}")
+            pct = f"{r['pct_change']:+.2f}%" if r["pct_change"] is not None else "n/a"
+            print(f"  {r['short']}: NAV {r['latest']['nav']:.4f} as of {r['latest']['date']} ({pct})")
+
+    update_dashboard_html(results, today)
 
     chart_path = "nav_trend_chart.png"
     render_trend_chart(results, chart_path)
-
     pdf_bytes = build_pdf(results, summary, today, chart_path)
     os.makedirs("reports", exist_ok=True)
     out_path = f"reports/principal-funds-dashboard-{today.isoformat()}.pdf"
@@ -409,13 +487,28 @@ def main() -> None:
         f.write(pdf_bytes)
     print(f"Wrote {out_path} ({len(pdf_bytes)} bytes)")
 
-    narrative = build_narrative(results, summary, today)
+    narrative = build_narrative(summary)
     print("---- narrative ----")
     print(narrative)
     print("--------------------")
 
-    send_email(narrative, today)
+    with open(STATE_PATH, "w", encoding="utf-8") as f:
+        json.dump({"date": today.isoformat(), "narrative": narrative}, f)
+    set_github_output("skip", "false")
+
+
+def cmd_notify() -> None:
+    if not os.path.exists(STATE_PATH):
+        print(f"[error] {STATE_PATH} not found — did the build step run first?", file=sys.stderr)
+        sys.exit(1)
+    with open(STATE_PATH, "r", encoding="utf-8") as f:
+        state = json.load(f)
+    run_date = date.fromisoformat(state["date"])
+    send_email(state["narrative"], run_date)
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) != 2 or sys.argv[1] not in ("build", "notify"):
+        print("Usage: python daily_pipeline.py [build|notify]", file=sys.stderr)
+        sys.exit(2)
+    {"build": cmd_build, "notify": cmd_notify}[sys.argv[1]]()
