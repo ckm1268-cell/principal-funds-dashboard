@@ -13,7 +13,7 @@ on:
         default: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   nav-report:
@@ -39,11 +39,24 @@ jobs:
           FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force_run && '1' || '' }}
         run: python scripts/fetch_nav_and_report.py
 
-      - name: Upload PDF as workflow artifact
+      - name: Commit illustrated PDF to reports/ (the "outputs folder" equivalent)
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -d reports ] && ! git diff --quiet -- reports; then
+            git add reports
+            git commit -m "Daily NAV report PDF: $(date -u +'%Y-%m-%d')"
+            git push
+          else
+            echo "No new report file to commit."
+          fi
+
+      - name: Upload PDF as workflow artifact (backup copy, 30-day retention)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: principal-funds-dashboard
-          path: principal-funds-dashboard-*.pdf
+          path: reports/principal-funds-dashboard-*.pdf
           if-no-files-found: ignore
           retention-days: 30
