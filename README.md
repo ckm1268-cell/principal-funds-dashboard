@@ -10,8 +10,9 @@ unit trust funds from principal.com.my's public NAV history, and drives
    https://ckm1268-cell.github.io/principal-funds-dashboard/
 2. Emails a short **narrative summary** via Resend, matching the wording
    style of the reports this project used to send from a Claude scheduled
-   task, plus commits an illustrated PDF with a NAV trend chart
-   (`reports/principal-funds-dashboard-<date>.pdf`) into the repo.
+   task, with the illustrated PDF (NAV trend chart + per-fund table,
+   `reports/principal-funds-dashboard-<date>.pdf`) attached — a copy is
+   also committed into the repo's `reports/` folder.
 
 Funds tracked:
 
@@ -157,6 +158,7 @@ rather than breaking the whole run.
 > this is already configured via your `RESEND_API_KEY` / `RESEND_FROM`
 > repo secrets, so no changes needed here unless you're rotating the key.
 
-The email itself is plain text/HTML narrative only (no attachment, to keep
-it lightweight) — the illustrated PDF instead lands in `reports/` in the
-repo (committed automatically) and as a 30-day workflow artifact.
+The email is plain text/HTML narrative with the illustrated PDF attached.
+The same PDF also lands in `reports/` in the repo (committed automatically)
+and as a 30-day workflow artifact, so it stays available even if an email
+ever fails to send.

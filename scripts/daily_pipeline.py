@@ -331,8 +331,8 @@ def build_narrative(summary: dict) -> str:
 
     return (
         f"{value_line} {freshness_line} {flag_line}\n\n"
-        f"The illustrated dashboard-style PDF (with charts) is saved to the repo's "
-        f"reports/ folder on GitHub — not attached here to keep this email lightweight.\n\n"
+        f"The illustrated dashboard-style PDF (with charts) is attached to this email, "
+        f"and also saved to the repo's reports/ folder on GitHub.\n\n"
         f"Live self-updating dashboard: {DASHBOARD_URL}"
     )
 
@@ -426,7 +426,7 @@ def build_pdf(results: list[dict], summary: dict, run_date: date, chart_path: st
     return bytes(pdf.output())
 
 
-def send_email(narrative: str, run_date: date) -> None:
+def send_email(narrative: str, run_date: date, pdf_path: str | None = None) -> None:
     api_key = os.environ["RESEND_API_KEY"]
     from_addr = os.environ["RESEND_FROM"]
     to_addrs = [a.strip() for a in os.environ["EMAIL_TO"].split(",") if a.strip()]
@@ -441,6 +441,18 @@ def send_email(narrative: str, run_date: date) -> None:
         "html": f'<div style="font-family:Arial,sans-serif;font-size:14px;color:#222">{html_body}</div>',
         "text": narrative,
     }
+
+    if pdf_path and os.path.exists(pdf_path):
+        with open(pdf_path, "rb") as f:
+            pdf_bytes = f.read()
+        payload["attachments"] = [{
+            "filename": os.path.basename(pdf_path),
+            "content": base64.b64encode(pdf_bytes).decode("ascii"),
+            "content_type": "application/pdf",
+        }]
+    elif pdf_path:
+        print(f"[warn] PDF not found at {pdf_path} — sending email without attachment", file=sys.stderr)
+
     resp = requests.post(
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
@@ -493,7 +505,7 @@ def cmd_build() -> None:
     print("--------------------")
 
     with open(STATE_PATH, "w", encoding="utf-8") as f:
-        json.dump({"date": today.isoformat(), "narrative": narrative}, f)
+        json.dump({"date": today.isoformat(), "narrative": narrative, "pdf_path": out_path}, f)
     set_github_output("skip", "false")
 
 
@@ -504,7 +516,7 @@ def cmd_notify() -> None:
     with open(STATE_PATH, "r", encoding="utf-8") as f:
         state = json.load(f)
     run_date = date.fromisoformat(state["date"])
-    send_email(state["narrative"], run_date)
+    send_email(state["narrative"], run_date, pdf_path=state.get("pdf_path"))
 
 
 if __name__ == "__main__":
