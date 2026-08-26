@@ -206,7 +206,7 @@ def build_portfolio_summary(results: list[dict]) -> dict:
 # Consumer 1: index.html (GitHub Pages dashboard)
 # ---------------------------------------------------------------------------
 
-def update_dashboard_html(results: list[dict], today: date) -> bool:
+def update_dashboard_html(results: list[dict], today: date, now: datetime) -> bool:
     """Rewrite index.html in place. Returns True if it changed."""
     if not os.path.exists(HTML_PATH):
         print(f"[warn] {HTML_PATH} not found — skipping dashboard update", file=sys.stderr)
@@ -256,6 +256,10 @@ def update_dashboard_html(results: list[dict], today: date) -> bool:
 
     # 3. Per-tab subtitles (today/yesterday/2days), using the Islamic fund's
     # own history as the reference session list (same convention as before).
+    # The "checked" time-of-day comes from this run's actual MYT timestamp —
+    # the yesterday/2days tabs reuse that same time-of-day against their
+    # earlier calendar date, since the workflow runs at ~the same time daily.
+    checked_time = now.strftime("%-I:%M %p")
     ref = next((r for r in results if r["key"] == "islamic" and r["history"]), None)
     if ref:
         yesterday, two_days_ago = today - timedelta(days=1), today - timedelta(days=2)
@@ -263,7 +267,7 @@ def update_dashboard_html(results: list[dict], today: date) -> bool:
             idx = max(len(ref["history"]) - 1 - offset, 0)
             published = ref["history"][idx]["date"]
             subtitle = (f"Published NAV as of {published.strftime('%-d %b %Y')} "
-                        f"· checked {checked.strftime('%-d %b %Y')}")
+                        f"· checked {checked.strftime('%-d %b %Y')}, {checked_time} MYT")
             html = safe_sub(rf'(id="subtitle-{tab_id}">)[^<]*(</div>)',
                              lambda m, s=subtitle: m.group(1) + s + m.group(2),
                              html, f"subtitle-{tab_id}")
@@ -378,14 +382,14 @@ def _wrapped(pdf: FPDF, h: float, text: str) -> None:
     pdf.multi_cell(0, h, text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
 
-def build_pdf(results: list[dict], summary: dict, run_date: date, chart_path: str) -> bytes:
+def build_pdf(results: list[dict], summary: dict, run_date: date, chart_path: str, now: datetime) -> bytes:
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 16)
     _line(pdf, 10, "Principal Funds - Daily NAV Dashboard")
     pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(100, 100, 100)
-    _line(pdf, 6, f"Report date: {run_date.strftime('%d %B %Y')} (Asia/Kuala_Lumpur)")
+    _line(pdf, 6, f"Report date: {run_date.strftime('%d %B %Y')}, {now.strftime('%-I:%M %p')} (Asia/Kuala_Lumpur)")
     _line(pdf, 6, "Source: principal.com.my (public NAV history)")
     pdf.ln(3)
     pdf.set_text_color(0, 0, 0)
@@ -481,7 +485,8 @@ def send_email(narrative: str, run_date: date, pdf_path: str | None = None) -> N
 # ---------------------------------------------------------------------------
 
 def cmd_build() -> None:
-    today = datetime.now(MYT).date()
+    now = datetime.now(MYT)
+    today = now.date()
 
     if os.environ.get("FORCE_RUN") != "1":
         should_run, reason = is_working_day(today)
@@ -500,11 +505,11 @@ def cmd_build() -> None:
             pct = f"{r['pct_change']:+.2f}%" if r["pct_change"] is not None else "n/a"
             print(f"  {r['short']}: NAV {r['latest']['nav']:.4f} as of {r['latest']['date']} ({pct})")
 
-    update_dashboard_html(results, today)
+    update_dashboard_html(results, today, now)
 
     chart_path = "nav_trend_chart.png"
     render_trend_chart(results, chart_path)
-    pdf_bytes = build_pdf(results, summary, today, chart_path)
+    pdf_bytes = build_pdf(results, summary, today, chart_path, now)
     os.makedirs("reports", exist_ok=True)
     out_path = f"reports/principal-funds-dashboard-{today.isoformat()}.pdf"
     with open(out_path, "wb") as f:
