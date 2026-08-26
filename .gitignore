@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+.pipeline_state.json
+nav_trend_chart.png
