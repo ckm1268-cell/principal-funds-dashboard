@@ -149,14 +149,38 @@ day-over-day move exceeds 2%. If a fund's fetch ever fails, it's shown as
 "data unavailable" in both outputs and excluded from the portfolio total
 rather than breaking the whole run.
 
-## 5. Resend email setup (unchanged from before)
+## 5. Resend email setup — verified domain (resolved)
 
-> Resend's shared `onboarding@resend.dev` address can only send to the
-> email address on your own Resend account. Since the report goes to
-> **two** addresses (ckm1268@gmail.com and lyn1268@gmail.com), you need a
-> verified domain in Resend and an API key/from-address on that domain —
-> this is already configured via your `RESEND_API_KEY` / `RESEND_FROM`
-> repo secrets, so no changes needed here unless you're rotating the key.
+Resend's shared `onboarding@resend.dev` "from" address only delivers to the
+email address on your own Resend account — sending to any second address
+while `RESEND_FROM` uses that shared address either gets rejected outright,
+or (as happened here) silently only delivers to the account owner while any
+other address in `EMAIL_TO` is dropped. This is a restriction on the *from*
+domain's verification status, not something a second "from" secret can work
+around — an email only ever has one "From" address; it's the **to** field
+that carries multiple recipients.
+
+This is now fixed with a real verified domain:
+
+- **Domain:** `myckmdomain.abrdns.com`, verified in Resend (Domains →
+  verified, sending enabled). DNS records (SPF/DKIM) for it are hosted with
+  **ClouDNS**, a production DNS provider — not a throwaway/free DNS
+  sandbox — so the verification is stable and isn't at risk of silently
+  lapsing.
+- **`RESEND_FROM` repo secret** is set to an address on that domain, e.g.
+  `Principal Funds Report <reports@myckmdomain.abrdns.com>`.
+- **`EMAIL_TO` repo secret** is confirmed to contain both recipients,
+  comma-separated: `ckm1268@gmail.com,lyn1268@gmail.com`.
+
+With `RESEND_FROM` on a verified domain, Resend's sandbox restriction no
+longer applies — both addresses in `EMAIL_TO` receive the report. Confirmed
+directly against Resend's own send log (not just "should work"): the actual
+delivered email now shows `From: reports@myckmdomain.abrdns.com` with both
+Gmail addresses in `To`.
+
+If a third recipient is ever needed, just add it to `EMAIL_TO` — no code or
+domain changes required, since the script already splits that secret on
+commas.
 
 The email is plain text/HTML narrative with the illustrated PDF attached.
 The same PDF also lands in `reports/` in the repo (committed automatically)
