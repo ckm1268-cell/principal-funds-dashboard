@@ -69,6 +69,7 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM: ${{ secrets.RESEND_FROM }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          NOTIFY_EMAIL_FROM: ${{ secrets.NOTIFY_EMAIL_FROM }}
         run: python scripts/daily_pipeline.py notify
 
       - name: Upload PDF as workflow artifact (backup copy, 30-day retention)
