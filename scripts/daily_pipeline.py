@@ -105,6 +105,12 @@ FUNDS = [
 # portfolio total by category instead of showing one combined total.
 CATEGORY_ORDER = ["LYN Funds", "CKM Funds"]
 
+# Each fund's chart color, keyed by its "key" so it stays the same whether
+# the fund appears on a combined chart or a per-category chart (and matches
+# the dashboard's LINE_COLORS, which is indexed the same way).
+FUND_COLORS = ["#2f6fed", "#e08a2c", "#1f7a4d", "#8a3fc0"]
+FUND_COLOR_MAP = {f["key"]: FUND_COLORS[i % len(FUND_COLORS)] for i, f in enumerate(FUNDS)}
+
 NAV_CSV_URL = "https://www.principal.com.my/en/nav/{node}"
 HOLIDAY_API_URL = "https://date.nager.at/api/v3/publicholidays/{year}/MY"
 DASHBOARD_URL = "https://ckm1268-cell.github.io/principal-funds-dashboard/"
@@ -425,18 +431,28 @@ def build_narrative(summary: dict) -> str:
     )
 
 
-def render_trend_chart(results: list[dict], out_path: str) -> None:
-    fig, ax = plt.subplots(figsize=(7.5, 4.2), dpi=150)
-    colors = ["#2f6fed", "#e08a2c", "#1f7a4d", "#8a3fc0"]
+def render_trend_chart(results: list[dict], out_path: str) -> bool:
+    """Draws a NAV trend chart for the given funds (e.g. one category's
+    funds) to out_path. Returns False (and writes nothing) if none of the
+    given funds has any history to plot, so callers can skip embedding a
+    blank/missing image."""
+    drawable = [r for r in results if r["history"]]
+    if not drawable:
+        return False
+
+    # Smaller legend row (ncol = number of funds here, not always 1) since a
+    # per-category chart usually has fewer funds than the full fund list.
+    fig, ax = plt.subplots(figsize=(7.5, 3.4), dpi=150)
     # Stagger each fund's value labels above/below its markers (alternating,
     # with growing offset) so overlapping lines don't stack labels on top
     # of one another.
     label_offsets = [8, -11, 14, -20]
-    for idx, (r, color) in enumerate(zip(results, colors)):
-        if not r["history"]:
-            continue
+    all_dates: list[date] = []
+    for idx, r in enumerate(drawable):
+        color = FUND_COLOR_MAP.get(r["key"], FUND_COLORS[idx % len(FUND_COLORS)])
         xs = [h["date"] for h in r["history"]]
         ys = [h["nav"] for h in r["history"]]
+        all_dates.extend(xs)
         ax.plot(xs, ys, marker="o", markersize=3, linewidth=1.6, label=r["short"], color=color)
         dy = label_offsets[idx % len(label_offsets)]
         for x, y in zip(xs, ys):
@@ -445,6 +461,13 @@ def render_trend_chart(results: list[dict], out_path: str) -> None:
                 ha="center", va=("bottom" if dy >= 0 else "top"),
                 fontsize=6, color=color,
             )
+    # A category with very few published sessions (e.g. a newly added fund
+    # with a single data point) has too little data for matplotlib's date
+    # locator to infer a sensible range on its own, so set an explicit
+    # window with a few days' padding on each side.
+    lo, hi = min(all_dates), max(all_dates)
+    pad = timedelta(days=max(2, (hi - lo).days // 10 or 2))
+    ax.set_xlim(lo - pad, hi + pad)
     ax.set_ylabel("NAV (RM)")
     ax.tick_params(axis="x", rotation=40, labelsize=8)
     ax.tick_params(axis="y", labelsize=8)
@@ -452,10 +475,12 @@ def render_trend_chart(results: list[dict], out_path: str) -> None:
     ax.spines["right"].set_visible(False)
     ax.grid(axis="y", linestyle="-", linewidth=0.5, color="#eeece7")
     ax.margins(y=0.22)  # extra vertical headroom so the value labels aren't clipped
-    fig.subplots_adjust(bottom=0.42, top=0.95, left=0.1, right=0.97)
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.32), ncol=1, fontsize=8, frameon=False)
+    fig.subplots_adjust(bottom=0.32, top=0.94, left=0.1, right=0.97)
+    legend_cols = min(len(drawable), 4)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.28), ncol=legend_cols, fontsize=8, frameon=False)
     fig.savefig(out_path, facecolor="white")
     plt.close(fig)
+    return True
 
 
 def _line(pdf: FPDF, h: float, text: str) -> None:
@@ -466,7 +491,7 @@ def _wrapped(pdf: FPDF, h: float, text: str) -> None:
     pdf.multi_cell(0, h, text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
 
-def build_pdf(results: list[dict], summary: dict, run_date: date, chart_path: str, now: datetime) -> bytes:
+def build_pdf(results: list[dict], summary: dict, run_date: date, chart_paths: dict, now: datetime) -> bytes:
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 16)
@@ -502,13 +527,21 @@ def build_pdf(results: list[dict], summary: dict, run_date: date, chart_path: st
         pdf.set_text_color(0, 0, 0)
         pdf.ln(2)
 
+        # This category's own NAV trend chart (one chart per category,
+        # instead of one combined chart for all funds), placed right under
+        # its own summary block.
+        cat_chart = (chart_paths or {}).get(cat)
+        if cat_chart and os.path.exists(cat_chart):
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.set_text_color(90, 90, 90)
+            _line(pdf, 5, f"{cat} - NAV trend")
+            pdf.set_text_color(0, 0, 0)
+            pdf.image(cat_chart, x=15, w=130)
+            pdf.ln(2)
+
     pdf.set_font("Helvetica", "B", 12)
     _line(pdf, 7, f"Funds flagged (>{FLAG_THRESHOLD_PCT:.0f}% move): {len(summary['flagged'])} of {len(results)}")
     pdf.ln(2)
-
-    if os.path.exists(chart_path):
-        pdf.image(chart_path, x=15, w=180)
-        pdf.ln(3)
 
     pdf.set_font("Helvetica", "B", 10)
     col_w = [58, 18, 24, 20, 24, 24, 18]
@@ -635,9 +668,16 @@ def cmd_build() -> None:
 
     update_dashboard_html(results, today, now)
 
-    chart_path = "nav_trend_chart.png"
-    render_trend_chart(results, chart_path)
-    pdf_bytes = build_pdf(results, summary, today, chart_path, now)
+    # One NAV trend chart per category (LYN Funds, CKM Funds) instead of a
+    # single combined chart for all funds.
+    chart_paths: dict[str, str] = {}
+    for cat in CATEGORY_ORDER:
+        cat_results = [r for r in results if r["category"] == cat]
+        slug = cat.split()[0].lower()  # "LYN Funds" -> "lyn", "CKM Funds" -> "ckm"
+        path = f"nav_trend_chart_{slug}.png"
+        if render_trend_chart(cat_results, path):
+            chart_paths[cat] = path
+    pdf_bytes = build_pdf(results, summary, today, chart_paths, now)
     os.makedirs("reports", exist_ok=True)
     out_path = f"reports/principal-funds-dashboard-{today.isoformat()}.pdf"
     with open(out_path, "wb") as f:
