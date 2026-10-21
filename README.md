@@ -1,7 +1,7 @@
 # Principal Funds Daily Pipeline (GitHub Actions)
 
 Runs Mon-Fri (skipping Malaysian public holidays automatically), fetches the
-latest NAV **once** for these three Principal Asset Management (Malaysia)
+latest NAV **once** for these four Principal Asset Management (Malaysia)
 unit trust funds from principal.com.my's public NAV history, and drives
 **both** of this project's outputs from that single fetch:
 
@@ -16,9 +16,62 @@ unit trust funds from principal.com.my's public NAV history, and drives
 
 Funds tracked:
 
-1. Principal Islamic Asia Pacific Dynamic Equity Fund
-2. Principal DALI Asia Pacific Equity Growth Fund
-3. Principal Greater China Equity Fund (Class MYR)
+1. Principal Islamic Asia Pacific Dynamic Equity Fund — **LYN Funds**
+2. Principal DALI Asia Pacific Equity Growth Fund — **LYN Funds**
+3. Principal Greater China Equity Fund (Class MYR) — **LYN Funds**
+4. Principal Malaysia Titans Fund (Class MYR) — **CKM Funds**
+
+## Performance tracking: original invested amount
+
+Each fund in `FUNDS` (in `scripts/daily_pipeline.py`) carries an
+`original_invested` figure (your stated RM cost basis for that holding),
+alongside its `units`. Every run computes each fund's current estimated
+value (NAV × units), compares it to `original_invested`, and reports the
+gain/loss in RM and % — on the dashboard, in the PDF's summary block and
+table ("Vs Orig." column), and in the emailed narrative ("Since original
+investment, ... is ..."). This replaced an earlier "vs baseline NAV"
+metric, which compared today's NAV to a fixed historical NAV rather than
+to what was actually invested.
+
+**Formula:**
+
+```
+current value = units held × latest NAV
+gain/loss      = current value − original invested amount
+```
+
+Applied per fund, and separately per category (see below) — a category's
+gain/loss is its funds' combined current value vs. its funds' combined
+original invested amount, not an average of each fund's %.
+
+## Category split: LYN Funds vs CKM Funds
+
+Each fund also carries a `category` ("LYN Funds" for the first three, "CKM
+Funds" for Malaysia Titans — set per-fund in `FUNDS`). Rather than a single
+combined portfolio total, every output reports **one subtotal per
+category** — total value, change vs yesterday, and gain/loss vs original
+invested — computed only from that category's own funds:
+
+- **Dashboard:** cards show "LYN Funds — value / gain-loss" and
+  "CKM Funds — value / gain-loss" (no combined-portfolio card); the
+  per-fund table is grouped by category, with a shaded subtotal row after
+  each group.
+- **PDF:** the summary block at the top repeats (total value / change vs
+  yesterday / original invested / gain-loss) once per category; the
+  per-fund table is grouped the same way, with a subtotal row per category.
+- **Email narrative:** one paragraph per category instead of one combined
+  portfolio sentence.
+
+"Funds flagged" (>2% single-day move) stays a single combined count across
+all funds — it's a risk indicator, not a total, so it isn't split.
+
+To change who a fund is grouped under, or add a third category, edit that
+fund's `"category"` value in `FUNDS` — everything above picks it up
+automatically on the next run.
+
+To update a fund's original invested amount, or add/remove a fund, edit the
+`FUNDS` list in `scripts/daily_pipeline.py` — the dashboard, PDF, and email
+all regenerate from that single source on the next run.
 
 ## Why one workflow instead of two
 

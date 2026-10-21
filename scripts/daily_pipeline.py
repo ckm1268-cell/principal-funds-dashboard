@@ -14,7 +14,7 @@ Run as two subcommands from the workflow, with the git commit happening in
 between them:
 
     python scripts/daily_pipeline.py build
-        Fetch NAV for all 3 funds (once), update index.html, build the
+        Fetch NAV for all funds (once), update index.html, build the
         illustrated PDF + trend chart into reports/, and cache the narrative
         text + run date to .pipeline_state.json for the notify step. Writes
         `skip=true|false` to $GITHUB_OUTPUT so the workflow can skip the
@@ -51,8 +51,10 @@ from fpdf.enums import XPos, YPos
 MYT = ZoneInfo("Asia/Kuala_Lumpur")
 
 # Single fund configuration shared by the dashboard (index.html) and the
-# email report. units / baseline_nav are your personal holdings (shared
-# across both outputs so they can never drift apart from each other).
+# email report. units are your personal unit holdings; original_invested is
+# the RM amount tracked as your cost basis for this fund (as stated by you),
+# used to compute gain/loss since original investment — shared across both
+# outputs so they can never drift apart from each other.
 FUNDS = [
     {
         "key": "islamic",
@@ -61,7 +63,8 @@ FUNDS = [
         "isin": "MYU1000AA007",
         "nav_node": 1280,
         "units": 74474.83,
-        "baseline_nav": 1.0396,
+        "original_invested": 74832.31,
+        "category": "LYN Funds",
     },
     {
         "key": "dali",
@@ -70,7 +73,8 @@ FUNDS = [
         "isin": "MYU1000BD009",
         "nav_node": 1270,
         "units": 76816.72,
-        "baseline_nav": 0.9549,
+        "original_invested": 71439.55,
+        "category": "LYN Funds",
     },
     {
         "key": "greaterChina",
@@ -79,9 +83,27 @@ FUNDS = [
         "isin": "MYU1000CB001",
         "nav_node": 6677,
         "units": 42026.20,
-        "baseline_nav": 1.2895,
+        "original_invested": 53343.86,
+        "category": "LYN Funds",
+    },
+    {
+        "key": "malaysiaTitans",
+        "name": "Principal Malaysia Titans Fund (Class MYR)",
+        "short": "Malaysia Titans (Class MYR)",
+        "isin": "N/A",
+        "nav_node": 1263,
+        "units": 9010.18,
+        "original_invested": 16162.46,
+        "category": "CKM Funds",
     },
 ]
+
+# Display/grouping order for the category subtotals (dashboard cards + table
+# subtotal rows, PDF summary + table, and the narrative email) — the first
+# three funds are categorized as "LYN Funds", the newly added Malaysia
+# Titans fund as "CKM Funds", per the user's explicit request to split the
+# portfolio total by category instead of showing one combined total.
+CATEGORY_ORDER = ["LYN Funds", "CKM Funds"]
 
 NAV_CSV_URL = "https://www.principal.com.my/en/nav/{node}"
 HOLIDAY_API_URL = "https://date.nager.at/api/v3/publicholidays/{year}/MY"
@@ -195,10 +217,47 @@ def build_portfolio_summary(results: list[dict]) -> dict:
     movers = [r for r in ok if r["pct_change"] is not None]
     largest_mover = max(movers, key=lambda r: abs(r["pct_change"])) if movers else None
 
+    # Performance since original investment (replaces the old fixed-NAV
+    # "baseline" comparison): current value vs the RM amount tracked as your
+    # cost basis per fund. Only counted over funds whose fetch succeeded this
+    # run, same convention as total_today/total_prev above.
+    total_original = sum(r["original_invested"] for r in ok)
+    total_gain = total_today - total_original
+    total_gain_pct = (total_gain / total_original * 100) if total_original else 0.0
+
+    # Per-category breakdown ("LYN Funds" vs "CKM Funds") — each category's
+    # own total value, day-over-day change, and gain/loss vs original
+    # invested, computed the same way as the combined figures above but
+    # scoped to that category's successfully-fetched funds. This is what the
+    # dashboard/PDF/email actually display now (replacing the single
+    # combined total/gain figures) per the user's request to split by
+    # category; the combined totals above are kept for internal use (e.g.
+    # cross-checks) even though they're no longer shown directly.
+    categories = {}
+    for cat in CATEGORY_ORDER:
+        cat_ok = [r for r in ok if r["category"] == cat]
+        if not cat_ok:
+            continue
+        cat_today = sum(r["latest"]["nav"] * r["units"] for r in cat_ok)
+        cat_prev = sum((r["previous"]["nav"] if r["previous"] else r["latest"]["nav"]) * r["units"] for r in cat_ok)
+        cat_diff = cat_today - cat_prev
+        cat_pct = (cat_diff / cat_prev * 100) if cat_prev else 0.0
+        cat_original = sum(r["original_invested"] for r in cat_ok)
+        cat_gain = cat_today - cat_original
+        cat_gain_pct = (cat_gain / cat_original * 100) if cat_original else 0.0
+        categories[cat] = {
+            "total_today": cat_today, "total_prev": cat_prev, "diff": cat_diff, "pct": cat_pct,
+            "total_original": cat_original, "total_gain": cat_gain, "total_gain_pct": cat_gain_pct,
+            "fund_count": len(cat_ok),
+        }
+
     return {
         "total_today": total_today, "total_prev": total_prev, "diff": diff, "pct": pct,
         "max_date": max_date, "lagging": lagging, "flagged": flagged,
         "largest_mover": largest_mover, "unavailable": unavailable,
+        "total_original": total_original, "total_gain": total_gain, "total_gain_pct": total_gain_pct,
+        "_fund_count": len(ok),
+        "categories": categories,
     }
 
 
@@ -244,9 +303,9 @@ def update_dashboard_html(results: list[dict], today: date, now: datetime) -> bo
         if not r["latest"]:
             continue
         fund_lines.append(
-            '    { name: "%s", isin: "%s", units: %s, baselineNav: %s, '
+            '    { name: "%s", isin: "%s", category: "%s", units: %s, originalInvested: %s, '
             'nav: %.4f, dailyChangePct: %.2f, history: realHistory.%s }'
-            % (r["name"], r["isin"], r["units"], r["baseline_nav"],
+            % (r["name"], r["isin"], r["category"], r["units"], r["original_invested"],
                r["latest"]["nav"], r["pct_change"] or 0.0, r["key"])
         )
     snapshot_body = ",\n".join(fund_lines)
@@ -301,19 +360,42 @@ def update_dashboard_html(results: list[dict], today: date, now: datetime) -> bo
 # Consumer 2: narrative email + illustrated PDF
 # ---------------------------------------------------------------------------
 
+_NUM_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
+
+
+def _num_word(n: int) -> str:
+    return _NUM_WORDS.get(n, str(n))
+
+
 def build_narrative(summary: dict) -> str:
-    diff, pct = summary["diff"], summary["pct"]
-    if diff >= 0:
-        value_line = (f"Total portfolio value is RM {summary['total_today']:,.2f}, "
-                       f"up +RM {diff:,.2f} (+{pct:.2f}%) vs yesterday.")
-    else:
-        value_line = (f"Total portfolio value is RM {summary['total_today']:,.2f}, "
-                       f"down RM {abs(diff):,.2f} ({pct:.2f}%) vs yesterday.")
+    # One paragraph per category ("LYN Funds" / "CKM Funds") instead of a
+    # single combined portfolio total — per the user's request to split the
+    # total and gain/loss figures by category.
+    cat_lines = []
+    for cat in CATEGORY_ORDER:
+        c = summary["categories"].get(cat)
+        if not c:
+            continue
+        diff, pct = c["diff"], c["pct"]
+        if diff >= 0:
+            vline = (f"{cat} total RM {c['total_today']:,.2f}, "
+                      f"up +RM {diff:,.2f} (+{pct:.2f}%) vs yesterday.")
+        else:
+            vline = (f"{cat} total RM {c['total_today']:,.2f}, "
+                      f"down RM {abs(diff):,.2f} ({pct:.2f}%) vs yesterday.")
+        gain, gain_pct = c["total_gain"], c["total_gain_pct"]
+        if gain >= 0:
+            gline = f"Since original investment, {cat} is up RM {gain:,.2f} (+{gain_pct:.2f}%)."
+        else:
+            gline = f"Since original investment, {cat} is down RM {abs(gain):,.2f} ({gain_pct:.2f}%)."
+        cat_lines.append(f"{vline} {gline}")
+    categories_block = "\n".join(cat_lines) if cat_lines else "No fund data available to summarize this run."
 
     if summary["max_date"] is None:
         freshness_line = "NAV data could not be retrieved for any fund this run."
     elif not summary["lagging"]:
-        freshness_line = f"All three funds are now published through {summary['max_date'].strftime('%-d %b %Y')}."
+        freshness_line = (f"All {_num_word(summary['_fund_count'])} funds are now published through "
+                           f"{summary['max_date'].strftime('%-d %b %Y')}.")
     else:
         lag_names = ", ".join(f"{r['short']} ({r['latest']['date'].strftime('%-d %b %Y')})" for r in summary["lagging"])
         freshness_line = (f"Published through {summary['max_date'].strftime('%-d %b %Y')} for most funds; "
@@ -335,7 +417,8 @@ def build_narrative(summary: dict) -> str:
         flag_line = "No day-over-day comparison available yet for any fund."
 
     return (
-        f"{value_line} {freshness_line} {flag_line}\n\n"
+        f"{categories_block}\n\n"
+        f"{freshness_line} {flag_line}\n\n"
         f"The illustrated dashboard-style PDF (with charts) is attached to this email, "
         f"and also saved to the repo's reports/ folder on GitHub.\n\n"
         f"Live self-updating dashboard: {DASHBOARD_URL}"
@@ -344,11 +427,11 @@ def build_narrative(summary: dict) -> str:
 
 def render_trend_chart(results: list[dict], out_path: str) -> None:
     fig, ax = plt.subplots(figsize=(7.5, 4.2), dpi=150)
-    colors = ["#2f6fed", "#e08a2c", "#1f7a4d"]
+    colors = ["#2f6fed", "#e08a2c", "#1f7a4d", "#8a3fc0"]
     # Stagger each fund's value labels above/below its markers (alternating,
-    # with growing offset) so 3 overlapping lines don't stack labels on top
+    # with growing offset) so overlapping lines don't stack labels on top
     # of one another.
-    label_offsets = [8, -11, 14]
+    label_offsets = [8, -11, 14, -20]
     for idx, (r, color) in enumerate(zip(results, colors)):
         if not r["history"]:
             continue
@@ -395,42 +478,84 @@ def build_pdf(results: list[dict], summary: dict, run_date: date, chart_path: st
     pdf.ln(3)
     pdf.set_text_color(0, 0, 0)
 
+    # Per-category summary blocks ("LYN Funds" / "CKM Funds") — replaces a
+    # single combined total/gain block, per the user's request to split the
+    # portfolio total by category.
+    for cat in CATEGORY_ORDER:
+        c = summary["categories"].get(cat)
+        if not c:
+            continue
+        pdf.set_font("Helvetica", "B", 12)
+        diff, pct = c["diff"], c["pct"]
+        color = (0, 128, 0) if diff >= 0 else (200, 0, 0)
+        sign = "+" if diff >= 0 else ""
+        _line(pdf, 7, f"{cat} - Total value: RM {c['total_today']:,.2f}")
+        pdf.set_text_color(*color)
+        _line(pdf, 7, f"{cat} - Change vs yesterday: {sign}RM {diff:,.2f} ({sign}{pct:.2f}%)")
+        pdf.set_text_color(0, 0, 0)
+        total_gain, total_gain_pct = c["total_gain"], c["total_gain_pct"]
+        gsign = "+" if total_gain >= 0 else ""
+        gcolor = (0, 128, 0) if total_gain >= 0 else (200, 0, 0)
+        _line(pdf, 7, f"{cat} - Original invested: RM {c['total_original']:,.2f}")
+        pdf.set_text_color(*gcolor)
+        _line(pdf, 7, f"{cat} - Gain/loss vs original invested: {gsign}RM {total_gain:,.2f} ({gsign}{total_gain_pct:.2f}%)")
+        pdf.set_text_color(0, 0, 0)
+        pdf.ln(2)
+
     pdf.set_font("Helvetica", "B", 12)
-    diff, pct = summary["diff"], summary["pct"]
-    color = (0, 128, 0) if diff >= 0 else (200, 0, 0)
-    sign = "+" if diff >= 0 else ""
-    _line(pdf, 7, f"Total portfolio value: RM {summary['total_today']:,.2f}")
-    pdf.set_text_color(*color)
-    _line(pdf, 7, f"Change vs yesterday: {sign}RM {diff:,.2f} ({sign}{pct:.2f}%)")
-    pdf.set_text_color(0, 0, 0)
     _line(pdf, 7, f"Funds flagged (>{FLAG_THRESHOLD_PCT:.0f}% move): {len(summary['flagged'])} of {len(results)}")
-    pdf.ln(4)
+    pdf.ln(2)
 
     if os.path.exists(chart_path):
         pdf.image(chart_path, x=15, w=180)
         pdf.ln(3)
 
     pdf.set_font("Helvetica", "B", 10)
-    col_w = [70, 22, 28, 24, 24, 22]
-    for w, h in zip(col_w, ["Fund", "NAV", "Est. Value", "1-day", "NAV date", "Flag"]):
+    col_w = [58, 18, 24, 20, 24, 24, 18]
+    for w, h in zip(col_w, ["Fund", "NAV", "Est. Value", "1-day", "Vs Orig.", "NAV date", "Flag"]):
         pdf.cell(w, 7, h, border=1)
     pdf.ln(7)
     pdf.set_font("Helvetica", "", 9)
-    for r in results:
-        if r["error"] or not r["latest"]:
-            pdf.cell(sum(col_w), 7, f"{r['short']}: data unavailable ({r['error'] or 'no rows'})", border=1)
-            pdf.ln(7)
+    # Grouped by category (LYN Funds, then CKM Funds), with a subtotal row
+    # after each group — per the user's request.
+    for cat in CATEGORY_ORDER:
+        cat_results = [r for r in results if r["category"] == cat]
+        if not cat_results:
             continue
-        latest = r["latest"]
-        value = latest["nav"] * r["units"]
-        pct_txt, flag_txt = "n/a", ""
-        if r["pct_change"] is not None:
-            pct_txt = f"{'+' if r['pct_change'] >= 0 else ''}{r['pct_change']:.2f}%"
-            flag_txt = "FLAG" if abs(r["pct_change"]) > FLAG_THRESHOLD_PCT else "OK"
-        row = [r["short"], f"{latest['nav']:.4f}", f"{value:,.0f}", pct_txt, latest["date"].strftime("%d %b"), flag_txt]
-        for w, val in zip(col_w, row):
-            pdf.cell(w, 7, val, border=1)
-        pdf.ln(7)
+        for r in cat_results:
+            if r["error"] or not r["latest"]:
+                pdf.cell(sum(col_w), 7, f"{r['short']}: data unavailable ({r['error'] or 'no rows'})", border=1)
+                pdf.ln(7)
+                continue
+            latest = r["latest"]
+            value = latest["nav"] * r["units"]
+            pct_txt, flag_txt = "n/a", ""
+            if r["pct_change"] is not None:
+                pct_txt = f"{'+' if r['pct_change'] >= 0 else ''}{r['pct_change']:.2f}%"
+                flag_txt = "FLAG" if abs(r["pct_change"]) > FLAG_THRESHOLD_PCT else "OK"
+            orig = r["original_invested"]
+            orig_pct = ((value - orig) / orig * 100) if orig else 0.0
+            orig_txt = f"{'+' if orig_pct >= 0 else ''}{orig_pct:.2f}%"
+            row = [r["short"], f"{latest['nav']:.4f}", f"{value:,.0f}", pct_txt, orig_txt, latest["date"].strftime("%d %b"), flag_txt]
+            for w, val in zip(col_w, row):
+                pdf.cell(w, 7, val, border=1)
+            pdf.ln(7)
+
+        c = summary["categories"].get(cat)
+        if c:
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.set_fill_color(240, 240, 236)
+            sub_row = [
+                f"{cat} - Subtotal", "", f"{c['total_today']:,.0f}",
+                f"{'+' if c['diff'] >= 0 else ''}{c['pct']:.2f}%",
+                f"{'+' if c['total_gain_pct'] >= 0 else ''}{c['total_gain_pct']:.2f}%",
+                "", "",
+            ]
+            for w, val in zip(col_w, sub_row):
+                pdf.cell(w, 7, val, border=1, fill=True)
+            pdf.ln(7)
+            pdf.set_fill_color(255, 255, 255)
+            pdf.set_font("Helvetica", "", 9)
 
     pdf.ln(4)
     pdf.set_font("Helvetica", "I", 8)
@@ -439,7 +564,9 @@ def build_pdf(results: list[dict], summary: dict, run_date: date, chart_path: st
         "Automated report generated by a scheduled GitHub Actions workflow. NAV figures are "
         "sourced from principal.com.my's public NAV history export and reflect the most recent "
         "business day for which data has been published; this may lag today's date by one or "
-        "more business days. Estimated value = published NAV x unit holdings.")
+        "more business days. Estimated value = published NAV x unit holdings. Gain/loss vs "
+        "original invested = (units held x latest NAV) - original invested amount, per fund and "
+        "per category.")
     return bytes(pdf.output())
 
 

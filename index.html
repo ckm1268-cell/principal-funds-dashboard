@@ -18,15 +18,17 @@
 
   <section class="tab-panel active" id="panel-today">
     <div class="daybadge daybadge-today">Today</div>
-    <div class="subtitle" id="subtitle-today">Published NAV as of 27 Aug 2026 · checked 28 Aug 2026, 5:23 PM MYT</div>
+    <div class="subtitle" id="subtitle-today">Published NAV as of 19 Oct 2026 · checked 21 Oct 2026, 1:29 PM MYT</div>
     <div class="cards">
-      <div class="card"><div class="label">Total portfolio value</div><div class="value" id="totalValue-today">—</div></div>
-      <div class="card"><div class="label">Change vs baseline</div><div class="value" id="totalChange-today">—</div></div>
+      <div class="card"><div class="label">LYN Funds — value</div><div class="value" id="lynValue-today">—</div></div>
+      <div class="card"><div class="label">LYN Funds — gain/loss vs original</div><div class="value" id="lynChange-today">—</div></div>
+      <div class="card"><div class="label">CKM Funds — value</div><div class="value" id="ckmValue-today">—</div></div>
+      <div class="card"><div class="label">CKM Funds — gain/loss vs original</div><div class="value" id="ckmChange-today">—</div></div>
       <div class="card"><div class="label">Funds flagged (&gt;2% 1-day move)</div><div class="value" id="flagCount-today">—</div></div>
     </div>
     <div class="table-wrap">
       <table id="fundTable-today">
-        <thead><tr><th>Fund</th><th>NAV</th><th>Est. Value (RM)</th><th>1-day move</th><th>Vs baseline</th><th>Status</th></tr></thead>
+        <thead><tr><th>Fund</th><th>NAV</th><th>Est. Value (RM)</th><th>1-day move</th><th>Vs Orig. Invested</th><th>Status</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -34,22 +36,25 @@
     <div class="foot">
       Sources: <code>principal.com.my</code> fund pages, cross-checked against <code>cio.cimb.com</code>. NAVs publish with a 1–2 day lag,
       so this reflects the most recent session Principal had posted at check time. Flag rule: &gt;2% single-day NAV move, or NAV unavailable
-      (vs-baseline % is shown for context only and does not itself trigger a flag).
+      (the vs-original-invested % is shown for context only and does not itself trigger a flag).
       as of this check (verified directly against principal.com.my).
+      Gain/loss vs original invested = (units held × latest NAV) − original invested amount, per fund and per category.
     </div>
   </section>
 
   <section class="tab-panel" id="panel-yesterday">
     <div class="daybadge daybadge-yesterday">Yesterday</div>
-    <div class="subtitle" id="subtitle-yesterday">Published NAV as of 26 Aug 2026 · checked 27 Aug 2026, 5:23 PM MYT</div>
+    <div class="subtitle" id="subtitle-yesterday">Published NAV as of 16 Oct 2026 · checked 20 Oct 2026, 1:29 PM MYT</div>
     <div class="cards">
-      <div class="card"><div class="label">Total portfolio value</div><div class="value" id="totalValue-yesterday">—</div></div>
-      <div class="card"><div class="label">Change vs baseline</div><div class="value" id="totalChange-yesterday">—</div></div>
+      <div class="card"><div class="label">LYN Funds — value</div><div class="value" id="lynValue-yesterday">—</div></div>
+      <div class="card"><div class="label">LYN Funds — gain/loss vs original</div><div class="value" id="lynChange-yesterday">—</div></div>
+      <div class="card"><div class="label">CKM Funds — value</div><div class="value" id="ckmValue-yesterday">—</div></div>
+      <div class="card"><div class="label">CKM Funds — gain/loss vs original</div><div class="value" id="ckmChange-yesterday">—</div></div>
       <div class="card"><div class="label">Funds flagged (&gt;2% 1-day move)</div><div class="value" id="flagCount-yesterday">—</div></div>
     </div>
     <div class="table-wrap">
       <table id="fundTable-yesterday">
-        <thead><tr><th>Fund</th><th>NAV</th><th>Est. Value (RM)</th><th>1-day move</th><th>Vs baseline</th><th>Status</th></tr></thead>
+        <thead><tr><th>Fund</th><th>NAV</th><th>Est. Value (RM)</th><th>1-day move</th><th>Vs Orig. Invested</th><th>Status</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -57,21 +62,24 @@
     <div class="foot">
       Sources: <code>principal.com.my</code> fund pages, cross-checked against <code>cio.cimb.com</code>. NAVs publish with a 1–2 day lag,
       so this reflects the most recent session Principal had posted at check time. Flag rule: &gt;2% single-day NAV move, or NAV unavailable
-      (vs-baseline % is shown for context only and does not itself trigger a flag).
+      (the vs-original-invested % is shown for context only and does not itself trigger a flag).
+      Gain/loss vs original invested = (units held × latest NAV) − original invested amount, per fund and per category.
     </div>
   </section>
 
   <section class="tab-panel" id="panel-2days">
     <div class="daybadge daybadge-2days">2 Days Ago</div>
-    <div class="subtitle" id="subtitle-2days">Published NAV as of 24 Aug 2026 · checked 26 Aug 2026, 5:23 PM MYT</div>
+    <div class="subtitle" id="subtitle-2days">Published NAV as of 15 Oct 2026 · checked 19 Oct 2026, 1:29 PM MYT</div>
     <div class="cards">
-      <div class="card"><div class="label">Total portfolio value</div><div class="value" id="totalValue-2days">—</div></div>
-      <div class="card"><div class="label">Change vs baseline</div><div class="value" id="totalChange-2days">—</div></div>
+      <div class="card"><div class="label">LYN Funds — value</div><div class="value" id="lynValue-2days">—</div></div>
+      <div class="card"><div class="label">LYN Funds — gain/loss vs original</div><div class="value" id="lynChange-2days">—</div></div>
+      <div class="card"><div class="label">CKM Funds — value</div><div class="value" id="ckmValue-2days">—</div></div>
+      <div class="card"><div class="label">CKM Funds — gain/loss vs original</div><div class="value" id="ckmChange-2days">—</div></div>
       <div class="card"><div class="label">Funds flagged (&gt;2% 1-day move)</div><div class="value" id="flagCount-2days">—</div></div>
     </div>
     <div class="table-wrap">
       <table id="fundTable-2days">
-        <thead><tr><th>Fund</th><th>NAV</th><th>Est. Value (RM)</th><th>1-day move</th><th>Vs baseline</th><th>Status</th></tr></thead>
+        <thead><tr><th>Fund</th><th>NAV</th><th>Est. Value (RM)</th><th>1-day move</th><th>Vs Orig. Invested</th><th>Status</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -79,7 +87,8 @@
     <div class="foot">
       Sources: <code>principal.com.my</code> fund pages, cross-checked against <code>cio.cimb.com</code>. NAVs publish with a 1–2 day lag,
       so this reflects the most recent session Principal had posted at check time. Flag rule: &gt;2% single-day NAV move, or NAV unavailable
-      (vs-baseline % is shown for context only and does not itself trigger a flag).
+      (the vs-original-invested % is shown for context only and does not itself trigger a flag).
+      Gain/loss vs original invested = (units held × latest NAV) − original invested amount, per fund and per category.
     </div>
   </section>
 
@@ -146,7 +155,7 @@
 
   .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
   .cards {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 22px;
   }
   @media (max-width: 640px) { .cards { grid-template-columns: 1fr; } }
   .card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
@@ -154,6 +163,7 @@
   .card .value { font-size: 22px; font-weight: 600; }
   .neg { color: var(--rust); }
   .pos { color: var(--green); }
+  tr.subtotal-row td { background: var(--tablehead); font-weight: 600; }
 
   .table-wrap { overflow-x: auto; margin-bottom: 24px; }
   table {
@@ -183,6 +193,7 @@
     .card, table, .chart-box { background: #1f1f24; border-color: #33333a; }
     th { background: #26262c; color: #ddd; }
     td { border-color: #2c2c33; }
+    tr.subtotal-row td { background: #26262c; }
     .tabs { border-color: #33333a; }
     .version-pill { background: #26262c; color: #999; }
   }
@@ -196,18 +207,20 @@ function showTab(id, btn) {
   btn.classList.add('active');
 }
 
-// Verified against principal.com.my NAV history pages on 13 Aug 2026 — no new NAV print
-// has been posted for any of the three funds since 11 Aug 2026.
+// Regenerated automatically each weekday run from live principal.com.my NAV
+// history for all tracked funds (see daily_pipeline.py update_dashboard_html).
 const realHistory = {
-  islamic: [["06-08",0.8928],["07-08",0.8872],["10-08",0.8980],["11-08",0.9060],["12-08",0.9276],["13-08",0.9586],["14-08",0.9755],["17-08",0.9759],["18-08",0.9581],["19-08",0.9166],["20-08",0.9405],["21-08",0.9477],["24-08",0.9208],["26-08",0.9305],["27-08",0.9437]],
-  dali: [["06-08",0.8655],["07-08",0.8628],["10-08",0.8700],["11-08",0.8769],["12-08",0.8869],["13-08",0.9064],["14-08",0.9134],["17-08",0.9119],["18-08",0.9022],["19-08",0.8753],["20-08",0.8967],["21-08",0.9055],["24-08",0.8869],["26-08",0.8946],["27-08",0.9028]],
-  greaterChina: [["06-08",1.2343],["07-08",1.2586],["10-08",1.2634],["11-08",1.2650],["12-08",1.2705],["13-08",1.2554],["14-08",1.2528],["17-08",1.2558],["18-08",1.2468],["19-08",1.2417],["20-08",1.2289],["21-08",1.2558],["24-08",1.2320],["26-08",1.2484],["27-08",1.2540]]
+  islamic: [["29-09",0.9852],["30-09",0.9869],["01-10",1.0030],["02-10",1.0140],["05-10",1.0307],["06-10",1.0296],["07-10",1.0184],["08-10",0.9956],["09-10",0.9974],["12-10",0.9777],["13-10",0.9293],["14-10",0.9301],["15-10",0.8692],["16-10",0.8808],["19-10",0.8823]],
+  dali: [["29-09",0.9299],["30-09",0.9310],["01-10",0.9349],["02-10",0.9391],["05-10",0.9500],["06-10",0.9482],["07-10",0.9408],["08-10",0.9213],["09-10",0.9248],["12-10",0.9109],["13-10",0.8785],["14-10",0.8749],["15-10",0.8328],["16-10",0.8381],["19-10",0.8403]],
+  greaterChina: [["29-09",1.2443],["30-09",1.2522],["01-10",1.2533],["02-10",1.2512],["05-10",1.2703],["06-10",1.2733],["07-10",1.2543],["08-10",1.2422],["09-10",1.2519],["12-10",1.2485],["13-10",1.2309],["14-10",1.2238],["15-10",1.1897],["16-10",1.1956],["19-10",1.1957]],
+  malaysiaTitans: [["19-10",1.7938]]
 };
 function fundsSnapshot() {
   return [
-    { name: "Principal Islamic Asia Pacific Dynamic Equity Fund", isin: "MYU1000AA007", units: 74474.83, baselineNav: 1.0396, nav: 0.9437, dailyChangePct: 1.42, history: realHistory.islamic },
-    { name: "Principal DALI Asia Pacific Equity Growth Fund", isin: "MYU1000BD009", units: 76816.72, baselineNav: 0.9549, nav: 0.9028, dailyChangePct: 0.92, history: realHistory.dali },
-    { name: "Principal Greater China Equity Fund (Class MYR)", isin: "MYU1000CB001", units: 42026.2, baselineNav: 1.2895, nav: 1.2540, dailyChangePct: 0.45, history: realHistory.greaterChina }
+    { name: "Principal Islamic Asia Pacific Dynamic Equity Fund", isin: "MYU1000AA007", category: "LYN Funds", units: 74474.83, originalInvested: 74832.31, nav: 0.8823, dailyChangePct: 0.17, history: realHistory.islamic },
+    { name: "Principal DALI Asia Pacific Equity Growth Fund", isin: "MYU1000BD009", category: "LYN Funds", units: 76816.72, originalInvested: 71439.55, nav: 0.8403, dailyChangePct: 0.26, history: realHistory.dali },
+    { name: "Principal Greater China Equity Fund (Class MYR)", isin: "MYU1000CB001", category: "LYN Funds", units: 42026.2, originalInvested: 53343.86, nav: 1.1957, dailyChangePct: 0.01, history: realHistory.greaterChina },
+    { name: "Principal Malaysia Titans Fund (Class MYR)", isin: "N/A", category: "CKM Funds", units: 9010.18, originalInvested: 16162.46, nav: 1.7938, dailyChangePct: 0, history: realHistory.malaysiaTitans }
   ];
 }
 function snapshotAtOffset(offset) {
@@ -226,8 +239,9 @@ function snapshotAtOffset(offset) {
 }
 const datasets = { today: snapshotAtOffset(0), yesterday: snapshotAtOffset(1), "2days": snapshotAtOffset(2) };
 
-const LINE_COLORS = ["#2f6fed", "#e08a2c", "#1f7a4d"];
+const LINE_COLORS = ["#2f6fed", "#e08a2c", "#1f7a4d", "#8a3fc0"];
 const SESSION_COLORS = ["#8a8a8a", "#e08a2c", "#2f6fed"];
+const CATEGORY_ORDER = ["LYN Funds", "CKM Funds"];
 
 const fmtMoney = n => "RM " + n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = n => (n > 0 ? "+" : "") + n.toFixed(2) + "%";
@@ -242,35 +256,66 @@ function el(tag, attrs, parent) {
 
 function renderTab(key) {
   const funds = datasets[key];
-  let totalValue = 0, totalBaseline = 0, flagged = 0;
+  let flagged = 0;
   const tbody = document.querySelector(`#fundTable-${key} tbody`);
   tbody.innerHTML = "";
 
-  funds.forEach(f => {
-    const value = f.nav * f.units;
-    const baselineValue = f.baselineNav * f.units;
-    const vsBaselinePct = ((value - baselineValue) / baselineValue) * 100;
-    totalValue += value;
-    totalBaseline += baselineValue;
-    const isFlagged = Math.abs(f.dailyChangePct) > 2;
-    if (isFlagged) flagged++;
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td><strong>${f.name}</strong><br><span style="color:#8a8a8a;font-size:11px">${f.isin}</span></td>
-      <td>${f.nav.toFixed(4)}</td>
-      <td>${fmtMoney(value)}</td>
-      <td class="${f.dailyChangePct >= 0 ? 'pos' : 'neg'}">${fmtPct(f.dailyChangePct)}</td>
-      <td class="${vsBaselinePct >= 0 ? 'pos' : 'neg'}">${fmtPct(vsBaselinePct)}</td>
-      <td>${isFlagged ? '<span class="flag flag-warn">Flagged</span>' : '<span class="flag flag-ok">OK</span>'}</td>
+  // Grouped by category (LYN Funds, then CKM Funds), each group followed by
+  // a subtotal row -- replaces a single combined portfolio total, per the
+  // user's request to split the total by category.
+  CATEGORY_ORDER.forEach(cat => {
+    const catFunds = funds.filter(f => f.category === cat);
+    if (!catFunds.length) return;
+    let catToday = 0, catPrev = 0, catOriginal = 0;
+
+    catFunds.forEach(f => {
+      const value = f.nav * f.units;
+      const prevNav = f.dailyChangePct !== 0 ? f.nav / (1 + f.dailyChangePct / 100) : f.nav;
+      const prevValue = prevNav * f.units;
+      const vsOriginalPct = ((value - f.originalInvested) / f.originalInvested) * 100;
+      const isFlagged = Math.abs(f.dailyChangePct) > 2;
+      if (isFlagged) flagged++;
+      catToday += value;
+      catPrev += prevValue;
+      catOriginal += f.originalInvested;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><strong>${f.name}</strong><br><span style="color:#8a8a8a;font-size:11px">${f.isin}</span></td>
+        <td>${f.nav.toFixed(4)}</td>
+        <td>${fmtMoney(value)}</td>
+        <td class="${f.dailyChangePct >= 0 ? 'pos' : 'neg'}">${fmtPct(f.dailyChangePct)}</td>
+        <td class="${vsOriginalPct >= 0 ? 'pos' : 'neg'}">${fmtPct(vsOriginalPct)}</td>
+        <td>${isFlagged ? '<span class="flag flag-warn">Flagged</span>' : '<span class="flag flag-ok">OK</span>'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    const catDiffPct = catPrev ? ((catToday - catPrev) / catPrev) * 100 : 0;
+    const catGain = catToday - catOriginal;
+    const catGainPct = catOriginal ? (catGain / catOriginal) * 100 : 0;
+
+    const subRow = document.createElement("tr");
+    subRow.className = "subtotal-row";
+    subRow.innerHTML = `
+      <td colspan="2">${cat} — Subtotal</td>
+      <td>${fmtMoney(catToday)}</td>
+      <td class="${catDiffPct >= 0 ? 'pos' : 'neg'}">${fmtPct(catDiffPct)}</td>
+      <td class="${catGainPct >= 0 ? 'pos' : 'neg'}">${fmtPct(catGainPct)}</td>
+      <td>—</td>
     `;
-    tbody.appendChild(tr);
+    tbody.appendChild(subRow);
+
+    const slug = cat.split(" ")[0].toLowerCase();
+    const valueEl = document.getElementById(`${slug}Value-${key}`);
+    const changeEl = document.getElementById(`${slug}Change-${key}`);
+    if (valueEl) valueEl.textContent = fmtMoney(catToday);
+    if (changeEl) {
+      changeEl.textContent = fmtPct(catGainPct);
+      changeEl.className = "value " + (catGainPct >= 0 ? "pos" : "neg");
+    }
   });
 
-  const totalChangePct = ((totalValue - totalBaseline) / totalBaseline) * 100;
-  document.getElementById(`totalValue-${key}`).textContent = fmtMoney(totalValue);
-  const totalChangeEl = document.getElementById(`totalChange-${key}`);
-  totalChangeEl.textContent = fmtPct(totalChangePct);
-  totalChangeEl.className = "value " + (totalChangePct >= 0 ? "pos" : "neg");
   const flagCountEl = document.getElementById(`flagCount-${key}`);
   flagCountEl.textContent = `${flagged} of ${funds.length}`;
   flagCountEl.className = "value " + (flagged > 0 ? "neg" : "pos");
@@ -287,8 +332,16 @@ function renderTrendChart(funds, container) {
   let minV = Math.min(...allVals), maxV = Math.max(...allVals);
   const range = (maxV - minV) || 1;
   minV -= range * 0.15; maxV += range * 0.15;
-  const n = funds[0].history.length;
-  const xStep = innerW / (n - 1);
+
+  // Use the fund with the longest history as the x-axis date reference, and
+  // align every other fund's points by matching date labels against it --
+  // not by raw array index -- so a fund with fewer published sessions (e.g.
+  // a newly added fund still building up real history) lands on its correct
+  // date instead of being bunched at the left edge.
+  const refFund = funds.reduce((a, b) => (b.history.length > a.history.length ? b : a), funds[0]);
+  const refDates = refFund.history.map(h => h[0]);
+  const n = refDates.length;
+  const xStep = n > 1 ? innerW / (n - 1) : 0;
   const xPos = i => pad.l + i * xStep;
   const yPos = v => pad.t + innerH - ((v - minV) / (maxV - minV)) * innerH;
 
@@ -305,11 +358,11 @@ function renderTrendChart(funds, container) {
   }
 
   // x labels (every other date to avoid crowding)
-  funds[0].history.forEach((h, i) => {
+  refDates.forEach((d, i) => {
     if (i % 2 !== 0 && i !== n - 1) return;
     const t = el("text", { x: xPos(i), y: H - pad.b + 34, "text-anchor": "middle", "font-size": 10, fill: "#6b6b6b",
       transform: `rotate(-40 ${xPos(i)} ${H - pad.b + 34})` }, svg);
-    t.textContent = h[0];
+    t.textContent = d;
   });
   const xlab = el("text", { x: W / 2, y: H - 8, "text-anchor": "middle", "font-size": 11, fill: "#3a3a3a" }, svg);
   xlab.textContent = "Date (2026)";
@@ -319,29 +372,28 @@ function renderTrendChart(funds, container) {
 
   // lines + markers + value labels
   // Stagger each fund's labels above/below its markers (alternating, with a
-  // growing offset) so 3 overlapping lines don't stack labels on each other.
-  const LABEL_DY = [-8, 14, -22];
+  // growing offset) so overlapping lines don't stack labels on each other.
+  const LABEL_DY = [-8, 14, -22, 28];
   funds.forEach((f, fi) => {
-    const pts = f.history.map((h, i) => `${xPos(i)},${yPos(h[1])}`).join(" ");
-    el("polyline", { points: pts, fill: "none", stroke: LINE_COLORS[fi], "stroke-width": 2 }, svg);
+    const pts = f.history
+      .map(h => { const idx = refDates.indexOf(h[0]); return idx === -1 ? null : { x: xPos(idx), y: yPos(h[1]), v: h[1] }; })
+      .filter(Boolean);
     const dy = LABEL_DY[fi % LABEL_DY.length];
-    f.history.forEach((h, i) => {
-      el("circle", { cx: xPos(i), cy: yPos(h[1]), r: 2.5, fill: LINE_COLORS[fi] }, svg);
+    if (pts.length > 1) {
+      el("polyline", { points: pts.map(p => `${p.x},${p.y}`).join(" "), fill: "none", stroke: LINE_COLORS[fi], "stroke-width": 2 }, svg);
+    }
+    pts.forEach(p => {
+      el("circle", { cx: p.x, cy: p.y, r: 2.5, fill: LINE_COLORS[fi] }, svg);
       const vt = el("text", {
-        x: xPos(i), y: yPos(h[1]) + dy, "text-anchor": "middle",
+        x: p.x, y: p.y + dy, "text-anchor": "middle",
         "font-size": 9, "font-weight": 600, fill: LINE_COLORS[fi],
         stroke: "#ffffff", "stroke-width": 3, "paint-order": "stroke",
       }, svg);
-      vt.textContent = h[1].toFixed(4);
+      vt.textContent = p.v.toFixed(4);
     });
   });
 
   // legend
-  const legendY = H - 6;
-  let lx = pad.l;
-  funds.forEach((f, fi) => {
-    // measured roughly; legend rendered as separate HTML row instead for reliability
-  });
   const legend = document.createElement("div");
   legend.style.cssText = "display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-top:8px;font-size:11px;color:#3a3a3a;";
   funds.forEach((f, fi) => {
@@ -362,10 +414,18 @@ function renderComparisonChart() {
   title.textContent = "Estimated value — last 3 published NAV sessions";
   container.appendChild(title);
 
-  const last3 = funds.map(f => f.history.slice(-3));
-  const sessionLabels = last3[0].map(h => h[0]);
-  const allHeights = funds.map((f, fi) => last3[fi].map(h => f.units * h[1]));
-  const overallMax = Math.max(...allHeights.flat());
+  // Use the fund with the longest history to pick the 3 session dates shown,
+  // then look up each fund's value by date (not by array position) so a
+  // fund with fewer published sessions (e.g. a newly added fund still
+  // building up real history) shows "no data yet" for the missing sessions
+  // instead of a misaligned or fabricated bar.
+  const refFund = funds.reduce((a, b) => (b.history.length > a.history.length ? b : a), funds[0]);
+  const sessionLabels = refFund.history.slice(-3).map(h => h[0]);
+  const allHeights = funds.map(f => sessionLabels.map(lab => {
+    const pt = f.history.find(h => h[0] === lab);
+    return pt ? f.units * pt[1] : null;
+  }));
+  const overallMax = Math.max(...allHeights.flat().filter(v => v !== null));
 
   const W = 900, H = 380;
   const pad = { l: 65, r: 20, t: 30, b: 90 };
@@ -389,13 +449,22 @@ function renderComparisonChart() {
 
   const groupW = innerW / funds.length;
   const barW = groupW / 3 * 0.62;
-  const shortNames = ["Islamic APAC Dynamic Equity", "DALI APAC Equity Growth", "Greater China Equity (MYR)"];
+  const shortNames = ["Islamic APAC Dynamic Equity", "DALI APAC Equity Growth", "Greater China Equity (MYR)", "Malaysia Titans (MYR)"];
 
   funds.forEach((f, fi) => {
     const groupCx = pad.l + groupW * fi + groupW / 2;
     for (let si = 0; si < 3; si++) {
       const h = allHeights[fi][si];
       const barX = groupCx - barW * 1.5 + si * barW;
+      if (h === null) {
+        const pend = el("text", {
+          x: 0, y: 0, "text-anchor": "middle", "dominant-baseline": "middle",
+          "font-size": 9, fill: "#a8a8a4",
+          transform: `translate(${barX + (barW * 0.92) / 2} ${pad.t + innerH - 10}) rotate(-90)`
+        }, svg);
+        pend.textContent = "no data yet";
+        continue;
+      }
       const barY = yPos(h);
       const barH = (pad.t + innerH) - barY;
       el("rect", { x: barX, y: barY, width: barW * 0.92, height: barH, fill: SESSION_COLORS[si], rx: 2 }, svg);
@@ -407,8 +476,8 @@ function renderComparisonChart() {
       }, svg);
       vtext.textContent = Math.round(h).toLocaleString("en-MY");
 
-      if (si > 0) {
-        const prev = allHeights[fi][si - 1];
+      const prev = si > 0 ? allHeights[fi][si - 1] : null;
+      if (prev !== null) {
         const diff = h - prev;
         const diffPct = prev ? (diff / prev) * 100 : 0;
         const sign = diff >= 0 ? "+" : "";
@@ -450,6 +519,6 @@ window.addEventListener("resize", () => {
   document.querySelectorAll(".tab-panel").forEach(p => { if (!p.classList.contains("active")) return; });
 });
 </script>
-<div id="last-updated" style="text-align:center;font-size:11px;color:#a8a8a4;padding-bottom:16px;">Auto-updated by GitHub Actions · last run 28 Aug 2026, 5:23 PM (Asia/Kuala_Lumpur)</div>
+<div id="last-updated" style="text-align:center;font-size:11px;color:#a8a8a4;padding-bottom:16px;">Auto-updated by GitHub Actions · last run 21 Oct 2026, 1:29 PM (Asia/Kuala_Lumpur)</div>
 </body>
 </html>
