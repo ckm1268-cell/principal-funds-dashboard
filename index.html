@@ -18,7 +18,7 @@
 
   <section class="tab-panel active" id="panel-today">
     <div class="daybadge daybadge-today">Today</div>
-    <div class="subtitle" id="subtitle-today">Published NAV as of 21 Oct 2026 · checked 23 Oct 2026, 1:31 PM MYT</div>
+    <div class="subtitle" id="subtitle-today">Published NAV as of 22 Oct 2026 · checked 26 Oct 2026, 1:32 PM MYT</div>
     <div class="cards">
       <div class="card"><div class="label">LYN Funds — value</div><div class="value" id="lynValue-today">—</div></div>
       <div class="card"><div class="label">LYN Funds — gain/loss vs original</div><div class="value" id="lynChange-today">—</div></div>
@@ -45,7 +45,7 @@
 
   <section class="tab-panel" id="panel-yesterday">
     <div class="daybadge daybadge-yesterday">Yesterday</div>
-    <div class="subtitle" id="subtitle-yesterday">Published NAV as of 20 Oct 2026 · checked 22 Oct 2026, 1:31 PM MYT</div>
+    <div class="subtitle" id="subtitle-yesterday">Published NAV as of 21 Oct 2026 · checked 25 Oct 2026, 1:32 PM MYT</div>
     <div class="cards">
       <div class="card"><div class="label">LYN Funds — value</div><div class="value" id="lynValue-yesterday">—</div></div>
       <div class="card"><div class="label">LYN Funds — gain/loss vs original</div><div class="value" id="lynChange-yesterday">—</div></div>
@@ -71,7 +71,7 @@
 
   <section class="tab-panel" id="panel-2days">
     <div class="daybadge daybadge-2days">2 Days Ago</div>
-    <div class="subtitle" id="subtitle-2days">Published NAV as of 19 Oct 2026 · checked 21 Oct 2026, 1:31 PM MYT</div>
+    <div class="subtitle" id="subtitle-2days">Published NAV as of 20 Oct 2026 · checked 24 Oct 2026, 1:32 PM MYT</div>
     <div class="cards">
       <div class="card"><div class="label">LYN Funds — value</div><div class="value" id="lynValue-2days">—</div></div>
       <div class="card"><div class="label">LYN Funds — gain/loss vs original</div><div class="value" id="lynChange-2days">—</div></div>
@@ -214,17 +214,17 @@ function showTab(id, btn) {
 // Regenerated automatically each weekday run from live principal.com.my NAV
 // history for all tracked funds (see daily_pipeline.py update_dashboard_html).
 const realHistory = {
-  islamic: [["01-10",1.0030],["02-10",1.0140],["05-10",1.0307],["06-10",1.0296],["07-10",1.0184],["08-10",0.9956],["09-10",0.9974],["12-10",0.9777],["13-10",0.9293],["14-10",0.9301],["15-10",0.8692],["16-10",0.8808],["19-10",0.8823],["20-10",0.8635],["21-10",0.8813]],
-  dali: [["01-10",0.9349],["02-10",0.9391],["05-10",0.9500],["06-10",0.9482],["07-10",0.9408],["08-10",0.9213],["09-10",0.9248],["12-10",0.9109],["13-10",0.8785],["14-10",0.8749],["15-10",0.8328],["16-10",0.8381],["19-10",0.8403],["20-10",0.8270],["21-10",0.8431]],
-  greaterChina: [["01-10",1.2533],["02-10",1.2512],["05-10",1.2703],["06-10",1.2733],["07-10",1.2543],["08-10",1.2422],["09-10",1.2519],["12-10",1.2485],["13-10",1.2309],["14-10",1.2238],["15-10",1.1897],["16-10",1.1956],["19-10",1.1957],["20-10",1.1722],["21-10",1.1810]],
-  malaysiaTitans: [["01-10",1.8133],["02-10",1.8250],["05-10",1.8553],["06-10",1.8837],["07-10",1.8733],["08-10",1.8422],["09-10",1.8573],["12-10",1.8613],["13-10",1.8313],["14-10",1.8291],["15-10",1.7900],["16-10",1.7971],["19-10",1.7938],["20-10",1.7743],["21-10",1.8051]]
+  islamic: [["02-10",1.0140],["05-10",1.0307],["06-10",1.0296],["07-10",1.0184],["08-10",0.9956],["09-10",0.9974],["12-10",0.9777],["13-10",0.9293],["14-10",0.9301],["15-10",0.8692],["16-10",0.8808],["19-10",0.8823],["20-10",0.8635],["21-10",0.8813],["22-10",0.8540]],
+  dali: [["02-10",0.9391],["05-10",0.9500],["06-10",0.9482],["07-10",0.9408],["08-10",0.9213],["09-10",0.9248],["12-10",0.9109],["13-10",0.8785],["14-10",0.8749],["15-10",0.8328],["16-10",0.8381],["19-10",0.8403],["20-10",0.8270],["21-10",0.8431],["22-10",0.8248]],
+  greaterChina: [["02-10",1.2512],["05-10",1.2703],["06-10",1.2733],["07-10",1.2543],["08-10",1.2422],["09-10",1.2519],["12-10",1.2485],["13-10",1.2309],["14-10",1.2238],["15-10",1.1897],["16-10",1.1956],["19-10",1.1957],["20-10",1.1722],["21-10",1.1810],["22-10",1.1379]],
+  malaysiaTitans: [["02-10",1.8250],["05-10",1.8553],["06-10",1.8837],["07-10",1.8733],["08-10",1.8422],["09-10",1.8573],["12-10",1.8613],["13-10",1.8313],["14-10",1.8291],["15-10",1.7900],["16-10",1.7971],["19-10",1.7938],["20-10",1.7743],["21-10",1.8051],["22-10",1.7927]]
 };
 function fundsSnapshot() {
   return [
-    { name: "Principal Islamic Asia Pacific Dynamic Equity Fund", isin: "MYU1000AA007", category: "LYN Funds", units: 74474.83, originalInvested: 74832.31, nav: 0.8813, dailyChangePct: 2.06, history: realHistory.islamic },
-    { name: "Principal DALI Asia Pacific Equity Growth Fund", isin: "MYU1000BD009", category: "LYN Funds", units: 76816.72, originalInvested: 71439.55, nav: 0.8431, dailyChangePct: 1.95, history: realHistory.dali },
-    { name: "Principal Greater China Equity Fund (Class MYR)", isin: "MYU1000CB001", category: "LYN Funds", units: 42026.2, originalInvested: 53343.86, nav: 1.1810, dailyChangePct: 0.75, history: realHistory.greaterChina },
-    { name: "Principal Malaysia Titans Fund (Class MYR)", isin: "N/A", category: "CKM Funds", units: 9010.18, originalInvested: 16162.46, nav: 1.8051, dailyChangePct: 1.74, history: realHistory.malaysiaTitans }
+    { name: "Principal Islamic Asia Pacific Dynamic Equity Fund", isin: "MYU1000AA007", category: "LYN Funds", units: 74474.83, originalInvested: 74832.31, nav: 0.8540, dailyChangePct: -3.10, history: realHistory.islamic },
+    { name: "Principal DALI Asia Pacific Equity Growth Fund", isin: "MYU1000BD009", category: "LYN Funds", units: 76816.72, originalInvested: 71439.55, nav: 0.8248, dailyChangePct: -2.17, history: realHistory.dali },
+    { name: "Principal Greater China Equity Fund (Class MYR)", isin: "MYU1000CB001", category: "LYN Funds", units: 42026.2, originalInvested: 53343.86, nav: 1.1379, dailyChangePct: -3.65, history: realHistory.greaterChina },
+    { name: "Principal Malaysia Titans Fund (Class MYR)", isin: "N/A", category: "CKM Funds", units: 9010.18, originalInvested: 16162.46, nav: 1.7927, dailyChangePct: -0.69, history: realHistory.malaysiaTitans }
   ];
 }
 function snapshotAtOffset(offset) {
@@ -541,6 +541,6 @@ window.addEventListener("resize", () => {
   document.querySelectorAll(".tab-panel").forEach(p => { if (!p.classList.contains("active")) return; });
 });
 </script>
-<div id="last-updated" style="text-align:center;font-size:11px;color:#a8a8a4;padding-bottom:16px;">Auto-updated by GitHub Actions · last run 23 Oct 2026, 1:31 PM (Asia/Kuala_Lumpur)</div>
+<div id="last-updated" style="text-align:center;font-size:11px;color:#a8a8a4;padding-bottom:16px;">Auto-updated by GitHub Actions · last run 26 Oct 2026, 1:32 PM (Asia/Kuala_Lumpur)</div>
 </body>
 </html>
