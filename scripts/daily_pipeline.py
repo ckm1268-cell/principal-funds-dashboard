@@ -373,10 +373,37 @@ def _num_word(n: int) -> str:
     return _NUM_WORDS.get(n, str(n))
 
 
-def build_narrative(summary: dict) -> str:
+def _fund_narrative_line(r: dict) -> str:
+    """One compact per-fund performance line, used under each category's
+    total/gain-loss lines in the narrative email (and mirrored in the PDF's
+    summary block) so individual fund performance is visible alongside the
+    category totals, not just lower down in the per-fund table."""
+    latest = r["latest"]
+    value = latest["nav"] * r["units"]
+    if r["pct_change"] is not None:
+        day_txt = f"{'+' if r['pct_change'] >= 0 else ''}{r['pct_change']:.2f}% vs yesterday"
+    else:
+        day_txt = "no prior NAV to compare"
+    orig = r["original_invested"]
+    fund_gain = value - orig
+    fund_gain_pct = (fund_gain / orig * 100) if orig else 0.0
+    if fund_gain >= 0:
+        gain_sentence = (f"Since original investment was RM {orig:,.2f}, the fund is up "
+                          f"RM {fund_gain:,.2f} (+{fund_gain_pct:.2f}%).")
+    else:
+        gain_sentence = (f"Since original investment was RM {orig:,.2f}, the fund is down "
+                          f"RM {abs(fund_gain):,.2f} ({fund_gain_pct:.2f}%).")
+    return (f"  - {r['short']}: NAV {latest['nav']:.4f} ({day_txt}), "
+            f"RM {value:,.2f}. {gain_sentence}")
+
+
+def build_narrative(results: list[dict], summary: dict) -> str:
     # One paragraph per category ("LYN Funds" / "CKM Funds") instead of a
     # single combined portfolio total — per the user's request to split the
-    # total and gain/loss figures by category.
+    # total and gain/loss figures by category. Each category paragraph also
+    # lists that category's individual funds' own performance (NAV, 1-day
+    # change, vs original invested) underneath its total/gain-loss lines,
+    # per the user's request to show fund-level detail alongside the totals.
     cat_lines = []
     for cat in CATEGORY_ORDER:
         c = summary["categories"].get(cat)
@@ -391,11 +418,16 @@ def build_narrative(summary: dict) -> str:
                       f"down RM {abs(diff):,.2f} ({pct:.2f}%) vs yesterday.")
         gain, gain_pct = c["total_gain"], c["total_gain_pct"]
         if gain >= 0:
-            gline = f"Since original investment, {cat} is up RM {gain:,.2f} (+{gain_pct:.2f}%)."
+            gline = (f"Since original investment was RM {c['total_original']:,.2f}, "
+                      f"{cat} is up RM {gain:,.2f} (+{gain_pct:.2f}%).")
         else:
-            gline = f"Since original investment, {cat} is down RM {abs(gain):,.2f} ({gain_pct:.2f}%)."
-        cat_lines.append(f"{vline} {gline}")
-    categories_block = "\n".join(cat_lines) if cat_lines else "No fund data available to summarize this run."
+            gline = (f"Since original investment was RM {c['total_original']:,.2f}, "
+                      f"{cat} is down RM {abs(gain):,.2f} ({gain_pct:.2f}%).")
+        cat_block = [f"{vline} {gline}"]
+        cat_funds = [r for r in results if r["category"] == cat and r["latest"] and not r["error"]]
+        cat_block.extend(_fund_narrative_line(r) for r in cat_funds)
+        cat_lines.append("\n".join(cat_block))
+    categories_block = "\n\n".join(cat_lines) if cat_lines else "No fund data available to summarize this run."
 
     if summary["max_date"] is None:
         freshness_line = "NAV data could not be retrieved for any fund this run."
@@ -491,6 +523,51 @@ def _wrapped(pdf: FPDF, h: float, text: str) -> None:
     pdf.multi_cell(0, h, text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
 
+def _draw_category_table(pdf: FPDF, cat: str, cat_results: list[dict], c: dict | None, col_w: list[float]) -> None:
+    """Draws one category's own per-fund table (with its own header row and
+    a shaded subtotal row), rather than one combined table at the end of the
+    document grouped by category -- so each category's table sits directly
+    under that category's own chart, per the user's request."""
+    pdf.set_font("Helvetica", "B", 10)
+    for w, h in zip(col_w, ["Fund", "NAV", "Est. Value", "1-day", "Vs Orig.", "NAV date", "Flag"]):
+        pdf.cell(w, 7, h, border=1)
+    pdf.ln(7)
+    pdf.set_font("Helvetica", "", 9)
+    for r in cat_results:
+        if r["error"] or not r["latest"]:
+            pdf.cell(sum(col_w), 7, f"{r['short']}: data unavailable ({r['error'] or 'no rows'})", border=1)
+            pdf.ln(7)
+            continue
+        latest = r["latest"]
+        value = latest["nav"] * r["units"]
+        pct_txt, flag_txt = "n/a", ""
+        if r["pct_change"] is not None:
+            pct_txt = f"{'+' if r['pct_change'] >= 0 else ''}{r['pct_change']:.2f}%"
+            flag_txt = "FLAG" if abs(r["pct_change"]) > FLAG_THRESHOLD_PCT else "OK"
+        orig = r["original_invested"]
+        orig_pct = ((value - orig) / orig * 100) if orig else 0.0
+        orig_txt = f"{'+' if orig_pct >= 0 else ''}{orig_pct:.2f}%"
+        row = [r["short"], f"{latest['nav']:.4f}", f"{value:,.0f}", pct_txt, orig_txt, latest["date"].strftime("%d %b"), flag_txt]
+        for w, val in zip(col_w, row):
+            pdf.cell(w, 7, val, border=1)
+        pdf.ln(7)
+
+    if c:
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_fill_color(240, 240, 236)
+        sub_row = [
+            f"{cat} - Subtotal", "", f"{c['total_today']:,.0f}",
+            f"{'+' if c['diff'] >= 0 else ''}{c['pct']:.2f}%",
+            f"{'+' if c['total_gain_pct'] >= 0 else ''}{c['total_gain_pct']:.2f}%",
+            "", "",
+        ]
+        for w, val in zip(col_w, sub_row):
+            pdf.cell(w, 7, val, border=1, fill=True)
+        pdf.ln(7)
+        pdf.set_fill_color(255, 255, 255)
+        pdf.set_font("Helvetica", "", 9)
+
+
 def build_pdf(results: list[dict], summary: dict, run_date: date, chart_paths: dict, now: datetime) -> bytes:
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.add_page()
@@ -503,13 +580,21 @@ def build_pdf(results: list[dict], summary: dict, run_date: date, chart_paths: d
     pdf.ln(3)
     pdf.set_text_color(0, 0, 0)
 
+    col_w = [58, 18, 24, 20, 24, 24, 18]
+
     # Per-category summary blocks ("LYN Funds" / "CKM Funds") — replaces a
     # single combined total/gain block, per the user's request to split the
     # portfolio total by category.
-    for cat in CATEGORY_ORDER:
+    for i, cat in enumerate(CATEGORY_ORDER):
         c = summary["categories"].get(cat)
         if not c:
             continue
+        # Start every category after the first on its own page, so a
+        # category's summary/chart/table block never gets awkwardly split
+        # across a page boundary -- per the user's request to put the CKM
+        # Funds block on a new page.
+        if i > 0:
+            pdf.add_page()
         pdf.set_font("Helvetica", "B", 12)
         diff, pct = c["diff"], c["pct"]
         color = (0, 128, 0) if diff >= 0 else (200, 0, 0)
@@ -525,6 +610,32 @@ def build_pdf(results: list[dict], summary: dict, run_date: date, chart_paths: d
         pdf.set_text_color(*gcolor)
         _line(pdf, 7, f"{cat} - Gain/loss vs original invested: {gsign}RM {total_gain:,.2f} ({gsign}{total_gain_pct:.2f}%)")
         pdf.set_text_color(0, 0, 0)
+
+        # Individual fund performance within this category, shown right
+        # alongside the category totals above (not just lower down in the
+        # per-fund table) -- per the user's request.
+        cat_ok_results = [r for r in results if r["category"] == cat and r["latest"] and not r["error"]]
+        if cat_ok_results:
+            pdf.set_font("Helvetica", "", 9)
+            pdf.set_text_color(80, 80, 80)
+            for r in cat_ok_results:
+                latest = r["latest"]
+                value = latest["nav"] * r["units"]
+                day_pct = r["pct_change"]
+                day_txt = (f"{'+' if day_pct >= 0 else ''}{day_pct:.2f}% vs yesterday"
+                           if day_pct is not None else "no prior NAV")
+                orig = r["original_invested"]
+                fund_gain = value - orig
+                fund_gain_pct = (fund_gain / orig * 100) if orig else 0.0
+                if fund_gain >= 0:
+                    gain_sentence = (f"Since original investment was RM {orig:,.2f}, the fund is up "
+                                      f"RM {fund_gain:,.2f} (+{fund_gain_pct:.2f}%).")
+                else:
+                    gain_sentence = (f"Since original investment was RM {orig:,.2f}, the fund is down "
+                                      f"RM {abs(fund_gain):,.2f} ({fund_gain_pct:.2f}%).")
+                _wrapped(pdf, 5, f"    {r['short']}: NAV {latest['nav']:.4f} ({day_txt}), "
+                                 f"RM {value:,.2f}. {gain_sentence}")
+            pdf.set_text_color(0, 0, 0)
         pdf.ln(2)
 
         # This category's own NAV trend chart (one chart per category,
@@ -539,57 +650,17 @@ def build_pdf(results: list[dict], summary: dict, run_date: date, chart_paths: d
             pdf.image(cat_chart, x=15, w=130)
             pdf.ln(2)
 
+        # This category's own per-fund table (with its own subtotal row),
+        # placed directly under this category's chart, instead of one
+        # combined table for all categories at the end of the document —
+        # per the user's request.
+        cat_all_results = [r for r in results if r["category"] == cat]
+        if cat_all_results:
+            _draw_category_table(pdf, cat, cat_all_results, c, col_w)
+            pdf.ln(4)
+
     pdf.set_font("Helvetica", "B", 12)
     _line(pdf, 7, f"Funds flagged (>{FLAG_THRESHOLD_PCT:.0f}% move): {len(summary['flagged'])} of {len(results)}")
-    pdf.ln(2)
-
-    pdf.set_font("Helvetica", "B", 10)
-    col_w = [58, 18, 24, 20, 24, 24, 18]
-    for w, h in zip(col_w, ["Fund", "NAV", "Est. Value", "1-day", "Vs Orig.", "NAV date", "Flag"]):
-        pdf.cell(w, 7, h, border=1)
-    pdf.ln(7)
-    pdf.set_font("Helvetica", "", 9)
-    # Grouped by category (LYN Funds, then CKM Funds), with a subtotal row
-    # after each group — per the user's request.
-    for cat in CATEGORY_ORDER:
-        cat_results = [r for r in results if r["category"] == cat]
-        if not cat_results:
-            continue
-        for r in cat_results:
-            if r["error"] or not r["latest"]:
-                pdf.cell(sum(col_w), 7, f"{r['short']}: data unavailable ({r['error'] or 'no rows'})", border=1)
-                pdf.ln(7)
-                continue
-            latest = r["latest"]
-            value = latest["nav"] * r["units"]
-            pct_txt, flag_txt = "n/a", ""
-            if r["pct_change"] is not None:
-                pct_txt = f"{'+' if r['pct_change'] >= 0 else ''}{r['pct_change']:.2f}%"
-                flag_txt = "FLAG" if abs(r["pct_change"]) > FLAG_THRESHOLD_PCT else "OK"
-            orig = r["original_invested"]
-            orig_pct = ((value - orig) / orig * 100) if orig else 0.0
-            orig_txt = f"{'+' if orig_pct >= 0 else ''}{orig_pct:.2f}%"
-            row = [r["short"], f"{latest['nav']:.4f}", f"{value:,.0f}", pct_txt, orig_txt, latest["date"].strftime("%d %b"), flag_txt]
-            for w, val in zip(col_w, row):
-                pdf.cell(w, 7, val, border=1)
-            pdf.ln(7)
-
-        c = summary["categories"].get(cat)
-        if c:
-            pdf.set_font("Helvetica", "B", 9)
-            pdf.set_fill_color(240, 240, 236)
-            sub_row = [
-                f"{cat} - Subtotal", "", f"{c['total_today']:,.0f}",
-                f"{'+' if c['diff'] >= 0 else ''}{c['pct']:.2f}%",
-                f"{'+' if c['total_gain_pct'] >= 0 else ''}{c['total_gain_pct']:.2f}%",
-                "", "",
-            ]
-            for w, val in zip(col_w, sub_row):
-                pdf.cell(w, 7, val, border=1, fill=True)
-            pdf.ln(7)
-            pdf.set_fill_color(255, 255, 255)
-            pdf.set_font("Helvetica", "", 9)
-
     pdf.ln(4)
     pdf.set_font("Helvetica", "I", 8)
     pdf.set_text_color(130, 130, 130)
@@ -608,7 +679,10 @@ def send_email(narrative: str, run_date: date, pdf_path: str | None = None) -> N
     from_addr = os.environ["RESEND_FROM"]
     to_addrs = [a.strip() for a in os.environ["EMAIL_TO"].split(",") if a.strip()]
 
-    html_body = "".join(f"<p>{para}</p>" for para in narrative.split("\n\n"))
+    # Convert single newlines (e.g. the per-fund lines listed under each
+    # category's totals) to <br> so they don't collapse into one run-on line
+    # in HTML -- blank lines still separate top-level <p> paragraphs.
+    html_body = "".join(f"<p>{para.replace(chr(10), '<br>')}</p>" for para in narrative.split("\n\n"))
     html_body = html_body.replace(DASHBOARD_URL, f'<a href="{DASHBOARD_URL}">{DASHBOARD_URL}</a>')
 
     payload = {
@@ -684,7 +758,7 @@ def cmd_build() -> None:
         f.write(pdf_bytes)
     print(f"Wrote {out_path} ({len(pdf_bytes)} bytes)")
 
-    narrative = build_narrative(summary)
+    narrative = build_narrative(results, summary)
     print("---- narrative ----")
     print(narrative)
     print("--------------------")
